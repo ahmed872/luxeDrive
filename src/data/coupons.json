@@ -1,0 +1,51 @@
+[
+  {
+    "id": 1,
+    "code": "LUXURY2024",
+    "discount": 10,
+    "description": "Get 10% off on all luxury sedans",
+    "expiryDate": "2025-12-31",
+    "active": true
+  },
+  {
+    "id": 2,
+    "code": "HYBRID15",
+    "discount": 15,
+    "description": "15% discount on all hybrid vehicles",
+    "expiryDate": "2025-11-30",
+    "active": true
+  },
+  {
+    "id": 3,
+    "code": "ELECTRIC20",
+    "discount": 20,
+    "description": "Save 20% on electric vehicles",
+    "expiryDate": "2025-10-15",
+    "active": true
+  },
+  {
+    "id": 4,
+    "code": "NEWCUSTOMER",
+    "discount": 5,
+    "description": "First-time buyer discount - 5% off",
+    "expiryDate": "2025-12-31",
+    "active": true
+  },
+  {
+    "id": 5,
+    "code": "SUMMER2024",
+    "discount": 12,
+    "description": "Summer special - 12% off all models",
+    "expiryDate": "2024-09-30",
+    "active": false
+  },
+  {
+    "id": 6,
+    "code": "VIP25",
+    "discount": 25,
+    "description": "Exclusive VIP members discount",
+    "expiryDate": "2025-12-31",
+    "active": true
+  }
+]
+

@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />cdccd
+    <meta http-equiv="refresh" content="0; url=/" />
+    <script>
+      // SPA redirect for static hosts (e.g., GitHub Pages)
+      // Preserve the current path and query by injecting them into a redirect to index.html
+      (function() {
+        var l = window.location;
+        var redirectTo = '/' + (l.pathname + l.search + l.hash).replace(/^\//, '');
+        // If the app is served from a subpath (e.g., /repo/), keep the base path
+        var base = document.baseURI || '/';
+        // Prefer history replacement to avoid extra back button step
+        window.location.replace(base + 'index.html' + (redirectTo ? ('?redirect=' + encodeURIComponent(redirectTo)) : ''));
+      })();
+    </script>
+    <title>Redirecting…</title>
+  </head>
+  <body>
+    Redirecting…
+  </body>
+</html>

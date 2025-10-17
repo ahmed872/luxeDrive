@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* Custom Color Palette - Navy Blue & Gold Luxury Theme */
+:root {
+  /* Primary Navy Colors */
+  --navy-dark: #0D1B2A;
+  --navy-medium: #1B263B;
+  --navy-light: #111723;
+  --navy-footer: #0A0F1C;
+  
+  /* Gold Colors - Softened */
+  --gold-primary: #D4AF37;
+  --gold-bright: #F5E6A3;
+  --gold-accent: #E6C200;
+  --gold-hover: #00E0FF;
+  
+  /* Card Background Colors */
+  --card-bg-dark: #1E1E1E;
+  --card-bg-medium: #2C2C2C;
+  --card-bg-light: #252525;
+  
+  /* Text Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #D9E1E8;
+  --text-muted: #8B9EB3;
+  
+  /* Tailwind vars */
+  --primary: 45 100% 42%;
+  --accent: 210 50% 15%;
+}
+
+/* Smooth Scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1B263B;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #D4AF37 0%, #F5E6A3 50%, #D4AF37 100%);
+  border-radius: 6px;
+  border: 2px solid #1B263B;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #E6C200 0%, #D4AF37 100%);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+}
+
+/* Smooth Animations */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Custom Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #D4AF37 0%, #F5E6A3 50%, #D4AF37 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glow Effect - Softened */
+.glow-gold {
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25), 0 8px 25px rgba(212, 175, 55, 0.15);
+}
+
+.glow-cyan {
+  box-shadow: 0 4px 15px rgba(0, 224, 255, 0.3), 0 8px 25px rgba(0, 224, 255, 0.2);
+}
+
+/* Animated Gradient Background */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Card Hover Effect */
+.card-hover {
+  transition: all 0.3s ease-in-out;
+}
+
+.card-hover:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.25), 0 10px 30px rgba(212, 175, 55, 0.12);
+}
+
+/* Button Hover Effect */
+.btn-gold-hover {
+  transition: all 0.3s ease-in-out;
+}
+
+.btn-gold-hover:hover {
+  background: #00E0FF !important;
+  box-shadow: 0 4px 20px rgba(0, 224, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Shimmer Loading Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #111723 25%, #1B263B 50%, #111723 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Soft Pulse Animation */
+@keyframes soft-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-soft-pulse {
+  animation: soft-pulse 3s ease-in-out infinite;
+}

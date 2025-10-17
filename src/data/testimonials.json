@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "name": "Michael Anderson",
+    "role": "Business Executive",
+    "rating": 5,
+    "comment": "Exceptional service and an incredible selection of luxury vehicles. I purchased my Mercedes S-Class here and couldn't be happier with the entire experience.",
+    "image": "https://i.pravatar.cc/150?img=12"
+  },
+  {
+    "id": 2,
+    "name": "Sarah Williams",
+    "role": "Entrepreneur",
+    "rating": 5,
+    "comment": "The team went above and beyond to help me find the perfect car. Their professionalism and attention to detail are unmatched in the industry.",
+    "image": "https://i.pravatar.cc/150?img=45"
+  },
+  {
+    "id": 3,
+    "name": "David Chen",
+    "role": "Tech Investor",
+    "rating": 5,
+    "comment": "I've purchased three vehicles from this dealership over the years. Their commitment to customer satisfaction and quality is why I keep coming back.",
+    "image": "https://i.pravatar.cc/150?img=33"
+  },
+  {
+    "id": 4,
+    "name": "Emily Rodriguez",
+    "role": "Medical Professional",
+    "rating": 5,
+    "comment": "From browsing to purchase, everything was seamless. The financing options were flexible, and the staff made me feel valued throughout the process.",
+    "image": "https://i.pravatar.cc/150?img=47"
+  }
+]
+
