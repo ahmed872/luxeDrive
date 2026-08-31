@@ -224,11 +224,16 @@ npm run preview
 
 ## 🔐 Admin Access
 
-**Demo Credentials:**
-- Username: `admin`
-- Password: `admin123`
+Admin sign-in is **disabled**. The previous demo credentials were hardcoded in
+client-side code and printed on the login page itself, which meant any visitor
+could open the admin panel. They have been removed.
 
-Access the admin panel at: `/admin/login`
+Real authentication is server-side (secure sessions + roles) and arrives with
+the platform rebuild. Until then `/admin/login` renders but cannot sign anyone
+in, and every `/admin/*` route stays unreachable by design.
+
+> The original demo behaviour is preserved for reference at the git tag
+> `pre-rebuild-reference`.
 
 ## 🌐 Backend Integration
 

@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/input';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const { setIsAdmin } = useApp();
+  const { language } = useApp();
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -25,14 +25,15 @@ const AdminLogin = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Dummy authentication (username: admin, password: admin123)
-    if (credentials.username === 'admin' && credentials.password === 'admin123') {
-      setIsAdmin(true);
-      navigate('/admin');
-    } else {
-      setError('Invalid username or password');
-    }
+
+    // Admin sign-in is disabled on purpose. Credentials must never be checked
+    // in the browser, so there is no client-side sign-in path at all until
+    // server-side authentication (sessions + roles) is in place.
+    setError(
+      language === 'ar'
+        ? 'تسجيل دخول الإدارة معطّل حاليًا. سيُفعَّل بعد تطبيق المصادقة على الخادم.'
+        : 'Admin sign-in is currently disabled. It will be enabled once server-side authentication is in place.'
+    );
   };
 
   return (
@@ -102,11 +103,11 @@ const AdminLogin = () => {
           </Button>
         </form>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-gray-600 text-center">
-            <strong>Demo Credentials:</strong><br />
-            Username: admin<br />
-            Password: admin123
+        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm text-amber-900 text-center">
+            {language === 'ar'
+              ? 'تسجيل الدخول معطّل مؤقتًا ريثما يتم تطبيق المصادقة على الخادم.'
+              : 'Sign-in is temporarily disabled pending server-side authentication.'}
           </p>
         </div>
 
