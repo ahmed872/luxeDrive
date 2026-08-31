@@ -119,6 +119,38 @@ export default tseslint.config(
       // Type-aware rules are deliberately not enabled: they require
       // `parserOptions.project`, which roughly triples lint time, and none of
       // the boundary or correctness rules above need type information.
+
+      // No raw colour in application code (P02 requirement): every colour is
+      // a design token defined once in `src/app/globals.css`. A hex code, an
+      // `rgb()`/`hsl()` function, or a bare CSS named colour typed into a
+      // component is either a duplicate of a token that already exists, or a
+      // one-off nobody else can find and fix consistently later. Tokens are
+      // consumed as `bg-(--color-brand)` (Tailwind v4 CSS-variable shorthand)
+      // or `var(--color-brand)`, never spelled out.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/#(?:[0-9a-fA-F]{3,4}\\b|[0-9a-fA-F]{6}\\b|[0-9a-fA-F]{8}\\b)/]',
+          message:
+            'No raw hex colour in component code — use a design token (`var(--color-*)` / `bg-(--color-*)`) from src/app/globals.css instead.',
+        },
+        {
+          selector: 'Literal[value=/\\b(?:rgba?|hsla?)\\(/i]',
+          message:
+            'No raw rgb/hsl colour function in component code — use a design token (`var(--color-*)` / `bg-(--color-*)`) from src/app/globals.css instead.',
+        },
+        {
+          selector:
+            'TemplateElement[value.raw=/#(?:[0-9a-fA-F]{3,4}\\b|[0-9a-fA-F]{6}\\b|[0-9a-fA-F]{8}\\b)/]',
+          message:
+            'No raw hex colour in component code — use a design token (`var(--color-*)` / `bg-(--color-*)`) from src/app/globals.css instead.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/\\b(?:rgba?|hsla?)\\(/i]',
+          message:
+            'No raw rgb/hsl colour function in component code — use a design token (`var(--color-*)` / `bg-(--color-*)`) from src/app/globals.css instead.',
+        },
+      ],
     },
   },
 
