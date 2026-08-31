@@ -46,3 +46,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Prisma generated client
+generated/
+
+# Local backups
+backups/

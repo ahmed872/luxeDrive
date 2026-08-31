@@ -1,0 +1,61 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens — placeholder set.
+ *
+ * P01 only establishes that tokens are the single source of colour and that
+ * nothing hardcodes a hex value. The real system (full palette, type scale,
+ * spacing, radius, elevation, motion) is defined in P02, along with the ESLint
+ * rule that makes bypassing it impossible.
+ *
+ * Status colours are deliberately separate from brand colours: the store owner
+ * configures the brand, never the meaning of success/warning/error (ADR-015).
+ */
+
+@theme {
+  --color-background: oklch(0.99 0.002 250);
+  --color-surface: oklch(1 0 0);
+  --color-surface-raised: oklch(0.97 0.003 250);
+  --color-border: oklch(0.9 0.004 250);
+  --color-text: oklch(0.22 0.01 250);
+  --color-text-muted: oklch(0.52 0.012 250);
+
+  --color-brand: oklch(0.28 0.045 250);
+  --color-brand-foreground: oklch(0.99 0.002 250);
+  --color-accent: oklch(0.76 0.12 85);
+
+  --color-success: oklch(0.55 0.11 150);
+  --color-warning: oklch(0.68 0.13 75);
+  --color-error: oklch(0.55 0.19 25);
+  --color-info: oklch(0.55 0.12 250);
+
+  --radius-control: 0.5rem;
+  --radius-surface: 0.75rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Arabic needs more line height than Latin at the same size (ADR-023). */
+  :lang(ar) body {
+    line-height: 1.8;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
