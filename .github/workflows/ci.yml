@@ -62,14 +62,21 @@ jobs:
       - name: Format check
         run: pnpm format:check
 
-      - name: Unit tests
-        run: pnpm test
-
+      # Ahead of the tests now (P03): catalog service tests run against a real
+      # schema, not just pure functions, so it has to exist before `pnpm test`
+      # runs. `vitest.global-setup.ts` also applies migrations itself before
+      # the test run — deploy is idempotent, so doing it here too is a no-op,
+      # not a race; it stays as its own explicit step for the same reason the
+      # smoke check is its own step: a failure here names itself precisely
+      # instead of surfacing as a confusing test failure.
       - name: Apply migrations
         run: pnpm db:deploy
 
       - name: Database smoke check
         run: pnpm db:smoke
+
+      - name: Unit tests
+        run: pnpm test
 
       - name: Production build
         run: pnpm build
