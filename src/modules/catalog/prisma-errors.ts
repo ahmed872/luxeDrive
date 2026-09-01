@@ -25,3 +25,33 @@ export function mapUniqueConstraint(error: unknown, field: string): AppError {
   }
   return error instanceof AppError ? error : new AppError('INTERNAL', { cause: error });
 }
+
+/** Prisma's `onDelete: Restrict` violation (P2003) — the database itself
+ * refusing a delete because another row still references it (a cart item or
+ * inventory adjustment still pointing at a variant, a product still
+ * assigned to a brand, …). Turned into a `CONFLICT` with a reason a person
+ * can act on, the same "never leak a raw driver error" rule
+ * `mapUniqueConstraint` already follows. */
+export function isForeignKeyRestrictError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2003'
+  );
+}
+
+/** `reasonCode` is a fixed, locale-free slug (e.g. `'category_still_referenced'`)
+ * — the admin UI's `admin-dictionary.ts` `errors` section turns it into an
+ * actual bilingual sentence; this file has no business writing UI copy in
+ * any language. */
+export function mapForeignKeyRestrict(error: unknown, reasonCode: string): AppError {
+  if (isForeignKeyRestrictError(error)) {
+    return new AppError('CONFLICT', {
+      cause: error,
+      details: { reasonCode },
+      internalMessage: reasonCode,
+    });
+  }
+  return error instanceof AppError ? error : new AppError('INTERNAL', { cause: error });
+}

@@ -21,13 +21,42 @@ export type AuditAction =
   | 'user.role_changed'
   | 'user.disabled'
   | 'user.enabled'
-  | 'user.created';
+  | 'user.created'
+  // P07 — admin catalog management. `userId` here is always the actor (the
+  // admin who did it); catalog rows have no "subject user" the way an
+  // account event does.
+  | 'product.created'
+  | 'product.updated'
+  | 'product.published'
+  | 'product.archived'
+  | 'product.deleted'
+  | 'category.created'
+  | 'category.updated'
+  | 'category.deleted'
+  | 'brand.created'
+  | 'brand.updated'
+  | 'brand.deleted'
+  | 'attribute_definition.created'
+  | 'attribute_definition.updated'
+  | 'attribute_definition.deleted'
+  | 'variant.created'
+  | 'variant.updated'
+  | 'variant.deleted';
+
+/** Every entity type an audit event can be about — `entityType` is a plain
+ * string column at the DB level (no enum constraint), but a fixed union
+ * here keeps every call site naming a real, spelled-consistently type
+ * rather than free-typing "Products" in one place and "product" in another. */
+export type AuditEntityType =
+  'User' | 'Product' | 'Category' | 'Brand' | 'AttributeDefinition' | 'Variant';
 
 export interface RecordAuditEventInput {
   action: AuditAction;
-  /** The user the event happened to (subject), not necessarily the actor —
-   * for login events they're the same person; for role changes they may
-   * differ once P07 adds an actor-vs-subject distinction. Nullable because a
+  /** Defaults to `'User'` — every P06 call site is a `User`-subject event
+   * and none of them pass this explicitly; P07's catalog events always do. */
+  entityType?: AuditEntityType;
+  /** The user the event happened to (subject) for a `User`-entityType event,
+   * or the acting admin for every other entity type. Nullable because a
    * failed login against an email that doesn't exist has no user row to
    * attach to. */
   userId?: string | null;
@@ -41,7 +70,7 @@ export async function recordAuditEvent(input: RecordAuditEventInput): Promise<vo
   await db.auditLog.create({
     data: {
       action: input.action,
-      entityType: 'User',
+      entityType: input.entityType ?? 'User',
       entityId: input.entityId ?? input.userId ?? null,
       userId: input.userId ?? null,
       before: input.before as Prisma.InputJsonValue | undefined,

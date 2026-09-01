@@ -37,6 +37,9 @@ export interface DataTableProps<Row> {
   sortDirection?: 'asc' | 'desc';
   onSortChange?: (key: string) => void;
   className?: string;
+  /** Every string here defaults to Arabic (the store default locale) and can be overridden per call site for English. */
+  selectAllLabel?: string;
+  selectRowLabel?: string;
 }
 
 /**
@@ -57,6 +60,8 @@ export function DataTable<Row>({
   sortDirection,
   onSortChange,
   className,
+  selectAllLabel = 'تحديد كل الصفوف',
+  selectRowLabel = 'تحديد الصف',
 }: DataTableProps<Row>) {
   const selectable = selectedIds !== undefined && onSelectedIdsChange !== undefined;
   const allSelected =
@@ -88,7 +93,7 @@ export function DataTable<Row>({
               <Checkbox
                 checked={allSelected}
                 onCheckedChange={toggleAll}
-                aria-label="تحديد كل الصفوف"
+                aria-label={selectAllLabel}
               />
             </TableHead>
           ) : null}
@@ -147,7 +152,7 @@ export function DataTable<Row>({
                       <Checkbox
                         checked={selectedIds!.has(id)}
                         onCheckedChange={() => toggleRow(id)}
-                        aria-label="تحديد الصف"
+                        aria-label={selectRowLabel}
                       />
                     </TableCell>
                   ) : null}

@@ -9,7 +9,7 @@ import {
   type CategoryInput,
   type CategoryUpdateInput,
 } from './schemas';
-import { mapUniqueConstraint } from './prisma-errors';
+import { mapUniqueConstraint, mapForeignKeyRestrict } from './prisma-errors';
 
 export interface CategoryNode extends Category {
   children: CategoryNode[];
@@ -69,6 +69,48 @@ export async function reorderCategories(
   await db.$transaction(
     orderedIds.map((id, position) => db.category.update({ where: { id }, data: { position } })),
   );
+}
+
+/**
+ * Removes a category outright — safe only for a genuinely empty one. Checked
+ * explicitly first (for a specific, actionable reason) even though the
+ * database's own `onDelete: Restrict` on `Category.parent` and
+ * `Product.category` would refuse the delete either way; this just turns
+ * that into "it has N subcategories" or "it has N products" instead of a
+ * generic conflict.
+ */
+export async function deleteCategory(id: string): Promise<void> {
+  await getCategoryOrThrow(id);
+
+  const [childCount, productCount] = await Promise.all([
+    db.category.count({ where: { parentId: id } }),
+    db.product.count({ where: { categoryId: id } }),
+  ]);
+
+  if (childCount > 0) {
+    throw new AppError('CONFLICT', {
+      internalMessage: `Category has ${childCount} subcategories`,
+      // `reasonCode` + `count`, not a pre-formatted sentence: the domain
+      // layer names *what* happened in a fixed, locale-free vocabulary; the
+      // admin UI (`admin-dictionary.ts`'s `errors` section) owns turning
+      // that into an actual bilingual sentence. Keeps this file free of any
+      // language's copy, the same separation `AppError.userMessage` already
+      // draws at the top level.
+      details: { reasonCode: 'category_has_subcategories', count: childCount },
+    });
+  }
+  if (productCount > 0) {
+    throw new AppError('CONFLICT', {
+      internalMessage: `Category has ${productCount} products assigned`,
+      details: { reasonCode: 'category_has_products', count: productCount },
+    });
+  }
+
+  try {
+    await db.category.delete({ where: { id } });
+  } catch (error) {
+    throw mapForeignKeyRestrict(error, 'category_still_referenced');
+  }
 }
 
 export async function getCategory(id: string): Promise<Category | null> {

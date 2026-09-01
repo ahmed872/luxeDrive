@@ -125,9 +125,31 @@ export async function createProduct(input: CreateProductInput): Promise<ProductW
   }
 }
 
-export async function updateProduct(id: string, input: ProductUpdateInput): Promise<Product> {
+/**
+ * `expectedUpdatedAt`, when passed, is optimistic concurrency: the caller
+ * hands back the `updatedAt` it last read, and this rejects with `CONFLICT`
+ * if the row has since changed under it — Admin A and Admin B editing the
+ * same product at once is a real scenario (P07 §23), and a silent
+ * last-write-wins would let B's save quietly erase A's without either of
+ * them knowing. No new column needed: `updatedAt` is already
+ * `@updatedAt`-maintained by Prisma on every write.
+ */
+export async function updateProduct(
+  id: string,
+  input: ProductUpdateInput,
+  expectedUpdatedAt?: Date,
+): Promise<Product> {
   const parsed = productUpdateSchema.parse(input);
   const existing = await getProductOrThrow(id);
+
+  if (expectedUpdatedAt && existing.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+    // No `reasonCode` needed — `CONFLICT`'s own generic bilingual message
+    // ("this item changed somewhere else, refresh and try again") already
+    // says exactly the right thing for a stale-version conflict.
+    throw new AppError('CONFLICT', {
+      internalMessage: 'Stale expectedUpdatedAt on product update',
+    });
+  }
 
   const categoryId = parsed.categoryId ?? existing.categoryId;
   if (parsed.categoryId) {
@@ -202,6 +224,40 @@ function assertPublishable(
 
 export async function publishProduct(id: string): Promise<Product> {
   return updateProduct(id, { status: 'PUBLISHED' as ProductStatus });
+}
+
+/** Removes a product from the storefront without deleting it — the "archive"
+ * status alone is enough for that (storefront queries already filter to
+ * `PUBLISHED`). Reversible: `updateProduct` can move it back to `DRAFT` or
+ * `PUBLISHED` at any time, unlike `softDeleteProduct` below. */
+export async function archiveProduct(id: string): Promise<Product> {
+  return updateProduct(id, { status: 'ARCHIVED' as ProductStatus });
+}
+
+/**
+ * Soft-delete (ADR-021): sets `deletedAt` rather than removing the row.
+ * Never a hard delete — a product can be referenced by real order history
+ * (`OrderItem.skuSnapshot` etc. survive independently, but a review, a past
+ * view record, and analytics rows all still point at this exact id) that a
+ * hard delete would either orphan or cascade through and destroy. Also sets
+ * `status: ARCHIVED` so it disappears from every storefront query that
+ * already filters by status, not just the ones that separately check
+ * `deletedAt`.
+ */
+export async function softDeleteProduct(id: string): Promise<Product> {
+  await getProductOrThrow(id);
+  return db.product.update({
+    where: { id },
+    data: { deletedAt: new Date(), status: 'ARCHIVED' },
+  });
+}
+
+/** Undoes `softDeleteProduct` — the product stays `ARCHIVED` (an admin
+ * re-publishes explicitly via `publishProduct`/`updateProduct` when ready)
+ * but is no longer soft-deleted. */
+export async function restoreProduct(id: string): Promise<Product> {
+  await getProductOrThrow(id);
+  return db.product.update({ where: { id }, data: { deletedAt: null } });
 }
 
 export async function getProduct(id: string): Promise<Product | null> {

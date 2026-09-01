@@ -19,6 +19,7 @@ export {
   createCategory,
   updateCategory,
   reorderCategories,
+  deleteCategory,
   getCategory,
   getCategoryBySlug,
   getAncestorChain,
@@ -27,11 +28,20 @@ export {
   type CategoryNode,
 } from './category.service';
 
-export { createBrand, updateBrand, getBrand, getBrandBySlug, listBrands } from './brand.service';
+export {
+  createBrand,
+  updateBrand,
+  deleteBrand,
+  getBrand,
+  getBrandBySlug,
+  listBrands,
+  listBrandsWithProductCounts,
+} from './brand.service';
 
 export {
   createAttributeDefinition,
   updateAttributeDefinition,
+  deleteAttributeDefinition,
   listAttributeDefinitions,
   getEffectiveAttributeDefinitions,
   buildAttributesSchema,
@@ -42,6 +52,9 @@ export {
   createProduct,
   updateProduct,
   publishProduct,
+  archiveProduct,
+  softDeleteProduct,
+  restoreProduct,
   getProduct,
   getProductBySlug,
   type ProductWithVariants,
@@ -54,6 +67,30 @@ export {
   reorderProductImages,
   listProductImages,
 } from './product-image.service';
+
+export {
+  listProductOptions,
+  createProductOption,
+  addOptionValues,
+  deleteProductOption,
+  deleteOptionValue,
+  generateMissingVariants,
+  updateVariant,
+  deleteVariant,
+  listVariants,
+  getVariant,
+  type ProductOptionWithValues,
+  type UpdateVariantInput,
+} from './variant.service';
+
+export {
+  listProductsForAdmin,
+  type AdminProductListingQuery,
+  type AdminProductListingItem,
+  type AdminProductListingResult,
+  type AdminProductSort,
+  type AdminStockFilter,
+} from './admin-product-listing.service';
 
 export {
   listProducts,
@@ -101,6 +138,7 @@ export {
   productCoreInputSchema,
   productUpdateSchema,
   productOptionInputSchema,
+  optionValueInputSchema,
   variantInputSchema,
   createProductInputSchema,
   type CategoryInput,

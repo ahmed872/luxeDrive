@@ -4,6 +4,7 @@ import { createCategory } from './category.service';
 import {
   createAttributeDefinition,
   updateAttributeDefinition,
+  deleteAttributeDefinition,
   listAttributeDefinitions,
   getEffectiveAttributeDefinitions,
   validateProductAttributes,
@@ -344,5 +345,26 @@ describe('validateProductAttributes', () => {
     ).rejects.toMatchObject({
       code: 'VALIDATION_FAILED',
     });
+  });
+});
+
+describe('deleteAttributeDefinition', () => {
+  it('removes a definition — it no longer appears in the effective set', async () => {
+    const category = await createCategory({ slug: 'shoes', nameAr: 'أحذية', nameEn: 'Shoes' });
+    const definition = await createAttributeDefinition({
+      categoryId: category.id,
+      key: 'material',
+      labelAr: 'الخامة',
+      labelEn: 'Material',
+      type: 'TEXT',
+    });
+    await deleteAttributeDefinition(definition.id);
+    expect(await getEffectiveAttributeDefinitions(category.id)).toEqual([]);
+  });
+
+  it('rejects an id that does not exist', async () => {
+    await expect(
+      deleteAttributeDefinition('00000000-0000-0000-0000-000000000000'),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

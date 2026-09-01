@@ -271,3 +271,32 @@ describe('publishing', () => {
     ).resolves.toMatchObject({ categoryId: shoes.id });
   });
 });
+
+describe('updateProduct — optimistic concurrency', () => {
+  it('rejects an update whose expectedUpdatedAt is stale', async () => {
+    const { category, brand } = await carsFixture();
+    const created = await createProduct(simpleProductInput(category.id, brand.id));
+    const staleTimestamp = created.updatedAt;
+
+    // Admin A saves first.
+    await updateProduct(created.id, { nameEn: 'Edited by A' });
+
+    // Admin B, who read the product before A's save, tries to save too —
+    // their expectedUpdatedAt no longer matches the current row.
+    await expect(
+      updateProduct(created.id, { nameEn: 'Edited by B' }, staleTimestamp),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    // A's edit survived; B's was never silently applied.
+    const final = await getProduct(created.id);
+    expect(final?.nameEn).toBe('Edited by A');
+  });
+
+  it('accepts an update whose expectedUpdatedAt matches the current row', async () => {
+    const { category, brand } = await carsFixture();
+    const created = await createProduct(simpleProductInput(category.id, brand.id));
+    await expect(
+      updateProduct(created.id, { nameEn: 'Edited' }, created.updatedAt),
+    ).resolves.toMatchObject({ nameEn: 'Edited' });
+  });
+});

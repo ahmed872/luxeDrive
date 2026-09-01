@@ -1,7 +1,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { createBrand, updateBrand, getBrand, getBrandBySlug, listBrands } from './brand.service';
+import {
+  createBrand,
+  updateBrand,
+  deleteBrand,
+  getBrand,
+  getBrandBySlug,
+  listBrands,
+} from './brand.service';
+import { createCategory } from './category.service';
+import { createProduct } from './product.service';
 import { resetCatalogTables } from './testing';
+import type { CreateProductInput } from './schemas';
 
 beforeEach(async () => {
   await resetCatalogTables();
@@ -56,5 +66,39 @@ describe('lookups', () => {
     await createBrand({ slug: 'adidas', nameAr: 'أديداس', nameEn: 'Adidas' });
     const brands = await listBrands();
     expect(brands.map((b) => b.nameEn)).toEqual(['Adidas', 'Nike']);
+  });
+});
+
+describe('deleteBrand', () => {
+  it('deletes a brand with no products', async () => {
+    const brand = await createBrand({ slug: 'nike', nameAr: 'نايكي', nameEn: 'Nike' });
+    await deleteBrand(brand.id);
+    expect(await getBrand(brand.id)).toBeNull();
+  });
+
+  it('refuses to delete a brand assigned to a product', async () => {
+    const category = await createCategory({ slug: 'cars', nameAr: 'سيارات', nameEn: 'Cars' });
+    const brand = await createBrand({ slug: 'nike', nameAr: 'نايكي', nameEn: 'Nike' });
+    const input: CreateProductInput = {
+      product: {
+        slug: 'car-1',
+        nameAr: 'سيارة',
+        nameEn: 'Car',
+        categoryId: category.id,
+        brandId: brand.id,
+      },
+      variants: [{ sku: 'CAR-1', priceMinor: 100000 }],
+    };
+    await createProduct(input);
+
+    await expect(deleteBrand(brand.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+    // and the product still has its brand — nothing was silently detached
+    expect((await getBrand(brand.id))?.id).toBe(brand.id);
+  });
+
+  it('rejects an id that does not exist', async () => {
+    await expect(deleteBrand('00000000-0000-0000-0000-000000000000')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

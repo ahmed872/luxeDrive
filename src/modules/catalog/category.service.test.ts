@@ -4,12 +4,15 @@ import {
   createCategory,
   updateCategory,
   reorderCategories,
+  deleteCategory,
   getCategory,
   getCategoryBySlug,
   getAncestorChain,
   getCategoryTree,
 } from './category.service';
+import { createProduct } from './product.service';
 import { resetCatalogTables } from './testing';
+import type { CreateProductInput } from './schemas';
 
 beforeEach(async () => {
   await resetCatalogTables();
@@ -169,5 +172,37 @@ describe('getCategoryBySlug', () => {
 
   it('returns null for a slug that does not exist', async () => {
     expect(await getCategoryBySlug('does-not-exist')).toBeNull();
+  });
+});
+
+describe('deleteCategory', () => {
+  it('deletes an empty leaf category', async () => {
+    const category = await createCategory(categoryInput());
+    await deleteCategory(category.id);
+    expect(await getCategory(category.id)).toBeNull();
+  });
+
+  it('refuses to delete a category that has subcategories', async () => {
+    const root = await createCategory(categoryInput());
+    await createCategory(
+      categoryInput({ slug: 'sedans', nameAr: 'سيدان', nameEn: 'Sedans', parentId: root.id }),
+    );
+    await expect(deleteCategory(root.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('refuses to delete a category that has products assigned', async () => {
+    const category = await createCategory(categoryInput());
+    const input: CreateProductInput = {
+      product: { slug: 'car-1', nameAr: 'سيارة', nameEn: 'Car', categoryId: category.id },
+      variants: [{ sku: 'CAR-1', priceMinor: 100000 }],
+    };
+    await createProduct(input);
+    await expect(deleteCategory(category.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('rejects an id that does not exist', async () => {
+    await expect(deleteCategory('00000000-0000-0000-0000-000000000000')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

@@ -76,6 +76,19 @@ export async function updateAttributeDefinition(
   });
 }
 
+/** Removes an attribute definition. Safe by construction: `Product.attributes`
+ * is a JSON blob, not a foreign key, so no row anywhere points at this one —
+ * a product that already stored a value for this key simply keeps it
+ * un-validated going forward (the same "an old stored value stays as
+ * historical data, not something a later schema change corrupts" posture
+ * `validateProductAttributes` only ever applies at write time). */
+export async function deleteAttributeDefinition(id: string): Promise<void> {
+  const existing = await db.attributeDefinition.findUnique({ where: { id } });
+  if (!existing)
+    throw new AppError('NOT_FOUND', { details: { entity: 'AttributeDefinition', id } });
+  await db.attributeDefinition.delete({ where: { id } });
+}
+
 export async function listAttributeDefinitions(categoryId: string): Promise<AttributeDefinition[]> {
   return db.attributeDefinition.findMany({
     where: { categoryId },
