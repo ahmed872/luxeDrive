@@ -26,11 +26,26 @@ export function adminErrorMessage(error: unknown, locale: Locale): string {
   const errors = getAdminDictionary(locale).errors as Record<string, string>;
 
   if (typeof reasonCode === 'string' && reasonCode in errors) {
-    const count = appError.details?.count;
-    return typeof count === 'number'
-      ? errors[reasonCode]!.replace('{count}', String(count))
-      : errors[reasonCode]!;
+    const base = interpolate(errors[reasonCode]!, appError.details?.count);
+
+    // Some failures are a list, not one fact: refusing to publish reports
+    // every missing piece at once, so the admin fixes them in one pass
+    // instead of discovering them one press at a time. Each entry is
+    // itself a reasonCode.
+    const problems = appError.details?.problems;
+    if (Array.isArray(problems) && problems.length > 0) {
+      const listed = problems
+        .filter((problem): problem is string => typeof problem === 'string' && problem in errors)
+        .map((problem) => errors[problem]!);
+      if (listed.length > 0) return `${base} ${listed.join(' ')}`;
+    }
+
+    return base;
   }
 
   return appError.messageFor(locale);
+}
+
+function interpolate(template: string, count: unknown): string {
+  return typeof count === 'number' ? template.replace('{count}', String(count)) : template;
 }

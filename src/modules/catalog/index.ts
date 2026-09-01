@@ -109,6 +109,7 @@ export {
 
 export {
   getProductDetailBySlug,
+  getProductDetailForPreview,
   getProductReviews,
   type ProductDetail,
   type ProductDetailVariant,

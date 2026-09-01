@@ -130,6 +130,25 @@ export async function getProductDetailBySlug(slug: string): Promise<ProductDetai
   return assembleDetail(row);
 }
 
+/**
+ * The same assembled detail, by id, for a product in *any* status — what
+ * the admin preview renders (P07 §10: see the product before publishing).
+ *
+ * Deliberately not reachable from the storefront: the only caller is the
+ * admin preview page, which is behind `requirePermission('products.read')`
+ * like every other admin route. Authorization is the admin session, never
+ * a secret in the URL — an unauthenticated request to that page is
+ * redirected to the login screen no matter what it knows about the id.
+ * A soft-deleted product is still excluded: there is nothing to preview
+ * about a product that has been removed.
+ */
+export async function getProductDetailForPreview(id: string): Promise<ProductDetail | null> {
+  const row = await db.product.findUnique({ where: { id }, include: detailInclude });
+  if (!row || row.deletedAt) return null;
+
+  return assembleDetail(row);
+}
+
 async function assembleDetail(row: DetailRow): Promise<ProductDetail> {
   const [breadcrumb, specifications, ratingAgg] = await Promise.all([
     getAncestorChain(row.categoryId),

@@ -209,15 +209,19 @@ function assertPublishable(
   product: { nameAr: string; nameEn: string; categoryId: string; attributes?: unknown },
   variantCount: number,
 ): void {
+  // Fixed, locale-free codes rather than prose: the admin UI turns each one
+  // into a sentence (`admin-dictionary.ts`'s `errors` section), so an admin
+  // pressing Publish is told exactly what is missing instead of a generic
+  // "invalid state transition" — see `lib/admin/admin-error-message.ts`.
   const problems: string[] = [];
-  if (variantCount < 1) problems.push('A product needs at least one variant to be published');
-  if (!product.nameAr?.trim() || !product.nameEn?.trim())
-    problems.push('Name (Arabic and English) is required');
-  if (!product.categoryId) problems.push('A category is required');
+  if (variantCount < 1) problems.push('publish_needs_variant');
+  if (!product.nameAr?.trim() || !product.nameEn?.trim()) problems.push('publish_needs_name');
+  if (!product.categoryId) problems.push('publish_needs_category');
 
   if (problems.length > 0) {
     throw new AppError('INVALID_STATE_TRANSITION', {
-      details: { reason: 'Product is not publishable', problems },
+      internalMessage: `Product is not publishable: ${problems.join(', ')}`,
+      details: { reasonCode: 'not_publishable', problems },
     });
   }
 }

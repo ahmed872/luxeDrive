@@ -16,6 +16,7 @@ import { getMediaAsset, getMediaPublicUrl } from '@/modules/media';
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, isLocale, type Locale } from '@/lib/i18n/locales';
 import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
 import { requireAdminPermission } from '@/lib/admin/require-admin';
+import { roleHasPermission } from '@/modules/identity';
 import { AdminBreadcrumbs } from '@/components/admin/admin-breadcrumbs';
 import { PageHeader } from '@/components/admin/page-header';
 import { FormSection } from '@/components/admin/form-section';
@@ -29,6 +30,7 @@ import {
   type ProductOptionRow,
   type VariantRow,
 } from '@/components/admin/variant-builder';
+import { ProductStatusBar } from '@/components/admin/product-status-bar';
 import type { AttributeFieldDefinition } from '@/lib/admin/product-actions';
 
 export const metadata: Metadata = { title: 'Edit product' };
@@ -44,7 +46,7 @@ function flattenCategories(nodes: CategoryNode[], locale: Locale, depth = 0): Pr
 }
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdminPermission('products.update');
+  const user = await requireAdminPermission('products.update');
   const { id } = await params;
 
   const product = await getProduct(id);
@@ -127,6 +129,34 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
             trail={[{ label: t.products.title, href: '/admin/products' }, { label: productLabel }]}
           />
         }
+      />
+
+      <ProductStatusBar
+        productId={product.id}
+        status={product.status}
+        locale={locale}
+        canDelete={roleHasPermission(user.role, 'products.delete')}
+        labels={{
+          current: t.status.current,
+          statusDraft: t.products.statusDraft,
+          statusPublished: t.products.statusPublished,
+          statusArchived: t.products.statusArchived,
+          publish: t.status.publish,
+          publishing: t.status.publishing,
+          published: t.status.published,
+          backToDraft: t.status.backToDraft,
+          backToDraftDone: t.status.backToDraftDone,
+          archive: t.status.archive,
+          archived: t.status.archived,
+          archiveConfirm: t.status.archiveConfirm,
+          delete: t.status.delete,
+          deleted: t.status.deleted,
+          deleteConfirm: t.status.deleteConfirm,
+          preview: t.status.preview,
+          confirmDeleteTitle: t.common.confirmDeleteTitle,
+          cancel: t.common.cancel,
+          confirm: t.common.confirm,
+        }}
       />
 
       <ProductForm
