@@ -9,6 +9,7 @@ import {
   getCategoryBySlug,
   getAncestorChain,
   getCategoryTree,
+  getCategoryTreeWithProductCounts,
 } from './category.service';
 import { createProduct } from './product.service';
 import { resetCatalogTables } from './testing';
@@ -44,7 +45,14 @@ describe('createCategory', () => {
 
   it('rejects a duplicate slug', async () => {
     await createCategory(categoryInput());
-    await expect(createCategory(categoryInput())).rejects.toMatchObject({ code: 'CONFLICT' });
+    // The `reasonCode` matters as much as the code: without it the admin UI
+    // falls back to `CONFLICT`'s generic "this changed somewhere else"
+    // message, which is what a stale-version conflict says and reads as
+    // actively wrong on a duplicate slug.
+    await expect(createCategory(categoryInput())).rejects.toMatchObject({
+      code: 'CONFLICT',
+      details: { reasonCode: 'duplicate_slug' },
+    });
   });
 
   it('rejects a parent that does not exist', async () => {
@@ -160,6 +168,28 @@ describe('getCategoryTree', () => {
     const tree = await getCategoryTree();
     const rootNode = tree.find((n) => n.id === root.id);
     expect(rootNode?.children.map((c) => c.id)).toEqual([child.id]);
+  });
+});
+
+describe('getCategoryTreeWithProductCounts', () => {
+  it('attaches each category its own direct product count', async () => {
+    const root = await createCategory(categoryInput());
+    const child = await createCategory(
+      categoryInput({ slug: 'sedans', nameAr: 'سيدان', nameEn: 'Sedans', parentId: root.id }),
+    );
+    const input: CreateProductInput = {
+      product: { slug: 'sedan-1', nameAr: 'سيدان', nameEn: 'Sedan', categoryId: child.id },
+      variants: [{ sku: 'SEDAN-1', priceMinor: 100000 }],
+    };
+    await createProduct(input);
+
+    const tree = await getCategoryTreeWithProductCounts();
+    const rootNode = tree.find((n) => n.id === root.id);
+    // The product sits on the child, so the parent's own count stays 0 —
+    // this is the direct count the admin delete guard uses, not the
+    // descendant-inclusive scope storefront browsing needs.
+    expect(rootNode?.productCount).toBe(0);
+    expect(rootNode?.children[0]?.productCount).toBe(1);
   });
 });
 

@@ -19,7 +19,12 @@ export function mapUniqueConstraint(error: unknown, field: string): AppError {
   if (isUniqueConstraintError(error)) {
     return new AppError('CONFLICT', {
       cause: error,
-      details: { field },
+      // `reasonCode` is field-specific (`duplicate_slug`, `duplicate_sku`, …)
+      // so `adminErrorMessage` can say exactly what's duplicated instead of
+      // falling back to `CONFLICT`'s generic "this item changed somewhere
+      // else" text — which is what a stale-version conflict says, and reads
+      // as actively misleading on a plain duplicate-value rejection.
+      details: { field, reasonCode: `duplicate_${field}` },
       internalMessage: `${field} already exists`,
     });
   }

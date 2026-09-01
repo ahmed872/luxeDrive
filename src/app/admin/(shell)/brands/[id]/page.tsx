@@ -62,6 +62,8 @@ export default async function EditBrandPage({ params }: { params: Promise<{ id: 
           saving: t.common.saving,
           cancel: t.common.cancel,
           requiredField: t.common.requiredField,
+          createdSuccess: t.brands.createdSuccess,
+          updatedSuccess: t.brands.updatedSuccess,
         }}
       />
     </div>

@@ -41,6 +41,8 @@ export interface BrandFormLabels {
   saving: string;
   cancel: string;
   requiredField: string;
+  createdSuccess: string;
+  updatedSuccess: string;
 }
 
 export interface BrandFormProps {
@@ -100,7 +102,10 @@ export function BrandForm({ locale, labels, brand }: BrandFormProps) {
       return;
     }
 
-    toast({ title: brand ? 'Brand updated' : 'Brand created', variant: 'success' });
+    toast({
+      title: brand ? labels.updatedSuccess : labels.createdSuccess,
+      variant: 'success',
+    });
     router.push('/admin/brands');
     router.refresh();
   }

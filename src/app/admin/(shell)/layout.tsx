@@ -5,7 +5,7 @@ import { auth } from '@/modules/identity';
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, isLocale } from '@/lib/i18n/locales';
 import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
 import { buildAdminNavSections } from '@/lib/admin/nav-config';
-import { AdminSidebarNav } from '@/components/admin/admin-sidebar-nav';
+import { AdminSidebarNav, AdminNavDrawer } from '@/components/admin/admin-sidebar-nav';
 import { AdminLocaleToggle } from '@/components/admin/admin-locale-toggle';
 import { ThemeToggle } from '@/components/storefront/theme-toggle';
 import { UserMenu } from '@/components/admin/user-menu';
@@ -51,6 +51,12 @@ export default async function AdminShellLayout({ children }: { children: React.R
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 shrink-0 items-center justify-end gap-2 border-b border-(--color-border) bg-(--color-surface) px-4 sm:px-6">
+          <AdminNavDrawer
+            sections={navSections}
+            navLabel={t.shell.mainNav}
+            openMenuLabel={t.shell.openMenu}
+            header={<span className="text-h6 font-bold text-(--color-text)">LuxeDrive</span>}
+          />
           <AdminLocaleToggle locale={locale} label={t.shell.language} />
           <ThemeToggle label={t.shell.toggleTheme} />
           <UserMenu

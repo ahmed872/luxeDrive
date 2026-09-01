@@ -24,8 +24,10 @@ export {
   getCategoryBySlug,
   getAncestorChain,
   getCategoryTree,
+  getCategoryTreeWithProductCounts,
   getDescendantCategoryIds,
   type CategoryNode,
+  type CategoryNodeWithProductCount,
 } from './category.service';
 
 export {

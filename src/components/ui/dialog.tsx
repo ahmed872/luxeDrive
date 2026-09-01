@@ -43,6 +43,11 @@ export function DialogContent({
           'fixed top-1/2 left-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 ' +
             'rounded-(--radius-lg) border border-(--color-border) bg-(--color-elevated) p-6 shadow-(--shadow-overlay) ' +
             'outline-none',
+          // A dialog taller than the viewport (a long form on a phone, or
+          // any form on a short laptop window) must scroll inside itself —
+          // without this its footer, the Save button included, sits off
+          // screen with no way to reach it.
+          'max-h-[calc(100dvh-2rem)] overflow-y-auto',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           className,

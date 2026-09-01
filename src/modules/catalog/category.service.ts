@@ -168,6 +168,35 @@ export async function getCategoryTree(rootId?: string): Promise<CategoryNode[]> 
   return [{ ...root, children: build(root.id) }];
 }
 
+export interface CategoryNodeWithProductCount extends CategoryNode {
+  productCount: number;
+  children: CategoryNodeWithProductCount[];
+}
+
+/** The same tree `getCategoryTree` returns, with each node's own direct
+ * product count attached — what the admin category list shows (P07 §4).
+ * Direct count only, not the descendant-inclusive scope
+ * `getDescendantCategoryIds` computes for storefront browsing: an admin
+ * managing "Cars" wants to know it can't be deleted because it itself has
+ * 3 products, not because "SUVs" under it does. */
+export async function getCategoryTreeWithProductCounts(): Promise<CategoryNodeWithProductCount[]> {
+  const [tree, counts] = await Promise.all([
+    getCategoryTree(),
+    db.product.groupBy({ by: ['categoryId'], _count: { _all: true } }),
+  ]);
+  const countByCategory = new Map(counts.map((c) => [c.categoryId, c._count._all]));
+
+  function attach(node: CategoryNode): CategoryNodeWithProductCount {
+    return {
+      ...node,
+      productCount: countByCategory.get(node.id) ?? 0,
+      children: node.children.map(attach),
+    };
+  }
+
+  return tree.map(attach);
+}
+
 /** `categoryId` plus every descendant's id — the scope a category listing
  * page shows products for, since browsing "Cars" should include "SUVs"
  * under it, not just products tagged directly on "Cars" itself. */

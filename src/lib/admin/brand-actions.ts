@@ -13,6 +13,7 @@ import {
   type BrandUpdateInput,
 } from '@/modules/catalog';
 import type { Locale } from '@/lib/i18n/locales';
+import type { ActionResult } from '@/lib/admin/action-result';
 
 /**
  * Every admin catalog mutation follows the same shape: `requirePermission`
@@ -29,11 +30,6 @@ import type { Locale } from '@/lib/i18n/locales';
  * its own the way a page does — the calling client component already knows
  * the admin's current locale and passes it straight through.
  */
-export interface ActionResult<T = undefined> {
-  ok: boolean;
-  data?: T;
-  error?: string;
-}
 
 export async function createBrandAction(
   input: BrandInput,

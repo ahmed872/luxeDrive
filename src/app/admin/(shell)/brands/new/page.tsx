@@ -44,6 +44,8 @@ export default async function NewBrandPage() {
           saving: t.common.saving,
           cancel: t.common.cancel,
           requiredField: t.common.requiredField,
+          createdSuccess: t.brands.createdSuccess,
+          updatedSuccess: t.brands.updatedSuccess,
         }}
       />
     </div>
