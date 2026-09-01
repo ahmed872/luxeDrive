@@ -154,6 +154,18 @@ enum SlugEntityType {
   BRAND
 }
 
+/// Which storage backend actually holds the bytes. EXTERNAL is a transitional
+/// state, not a real backend: it's what a MediaAsset created by referencing a
+/// URL nobody has downloaded yet looks like (ADR-010/P04) — the P03 car
+/// migration created rows this way, and P04's own migration script flips
+/// them to a real provider. Nothing in the app should treat EXTERNAL as a
+/// long-term destination.
+enum StorageProvider {
+  S3
+  LOCAL
+  EXTERNAL
+}
+
 // ---------------------------------------------------------------------------
 // identity
 // ---------------------------------------------------------------------------
@@ -221,15 +233,25 @@ model AuditLog {
 /// Generic from day one (ADR-010): products, banners and homepage sections all
 /// reference the same assets rather than each owning its own image system.
 model MediaAsset {
-  id         String   @id @default(uuid()) @db.Uuid
-  storageKey String   @unique @map("storage_key")
-  mime       String
-  sizeBytes  Int      @map("size_bytes")
-  width      Int?
-  height     Int?
-  altAr      String?  @map("alt_ar")
-  altEn      String?  @map("alt_en")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id          String           @id @default(uuid()) @db.Uuid
+  provider    StorageProvider  @default(EXTERNAL)
+  storageKey  String           @unique @map("storage_key")
+  /// SHA-256 of the actual bytes, computed server-side after upload — never
+  /// trusted from the client. Nullable because it can't be backfilled for a
+  /// row created before the bytes were ever fetched (EXTERNAL, pre-P04); a
+  /// unique index (not constraint — Postgres allows multiple NULLs) is what
+  /// makes "does this exact file already exist" a single indexed lookup
+  /// instead of a table scan, for both `confirmUpload` and the media
+  /// migration script (ADR: content-hash dedup).
+  contentHash String?          @unique @map("content_hash")
+  mime        String
+  sizeBytes   Int              @map("size_bytes")
+  width       Int?
+  height      Int?
+  altAr       String?          @map("alt_ar")
+  altEn       String?          @map("alt_en")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at")
 
   productImages   ProductImage[]
   categoryImages  Category[]

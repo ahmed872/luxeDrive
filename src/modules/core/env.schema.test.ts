@@ -10,6 +10,10 @@ import {
 const validServer = {
   NODE_ENV: 'test',
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+  // STORAGE_PROVIDER defaults to 'local', which requires this (P04) —
+  // omitting it is exactly what the "missing signing secret" test below
+  // covers, so the general-purpose "valid environment" fixture needs it.
+  MEDIA_UPLOAD_SIGNING_SECRET: 'a'.repeat(32),
 };
 
 describe('parseServerEnv', () => {
@@ -23,7 +27,10 @@ describe('parseServerEnv', () => {
   });
 
   it('defaults NODE_ENV to development', () => {
-    const result = parseServerEnv({ DATABASE_URL: validServer.DATABASE_URL });
+    const result = parseServerEnv({
+      DATABASE_URL: validServer.DATABASE_URL,
+      MEDIA_UPLOAD_SIGNING_SECRET: validServer.MEDIA_UPLOAD_SIGNING_SECRET,
+    });
     expect(result.success && result.data.NODE_ENV).toBe('development');
   });
 
@@ -41,6 +48,41 @@ describe('parseServerEnv', () => {
   it('rejects an unknown NODE_ENV rather than guessing', () => {
     const result = parseServerEnv({ ...validServer, NODE_ENV: 'staging' });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('parseServerEnv — media storage (P04)', () => {
+  it('defaults STORAGE_PROVIDER to local', () => {
+    const result = parseServerEnv(validServer);
+    expect(result.success && result.data.STORAGE_PROVIDER).toBe('local');
+  });
+
+  it('rejects the local provider without a signing secret, naming the variable', () => {
+    const { MEDIA_UPLOAD_SIGNING_SECRET: _omit, ...rest } = validServer;
+    const result = parseServerEnv(rest);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.message).toContain('MEDIA_UPLOAD_SIGNING_SECRET');
+  });
+
+  it('rejects the s3 provider missing its required credentials, naming every missing one', () => {
+    const result = parseServerEnv({ ...validServer, STORAGE_PROVIDER: 's3' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.message).toContain('STORAGE_BUCKET');
+      expect(result.message).toContain('STORAGE_ACCESS_KEY_ID');
+      expect(result.message).toContain('STORAGE_SECRET_ACCESS_KEY');
+    }
+  });
+
+  it('accepts the s3 provider once all its required credentials are present — no fake defaults fill them in', () => {
+    const result = parseServerEnv({
+      ...validServer,
+      STORAGE_PROVIDER: 's3',
+      STORAGE_BUCKET: 'luxedrive-media',
+      STORAGE_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+      STORAGE_SECRET_ACCESS_KEY: 'secret-example',
+    });
+    expect(result.success).toBe(true);
   });
 });
 

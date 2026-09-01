@@ -43,6 +43,14 @@ export {
 } from './product.service';
 
 export {
+  attachProductImage,
+  detachProductImage,
+  setPrimaryProductImage,
+  reorderProductImages,
+  listProductImages,
+} from './product-image.service';
+
+export {
   cartesianProduct,
   matchVariantsToCombinations,
   generateSku,

@@ -52,3 +52,6 @@ generated/
 
 # Local backups
 backups/
+
+# Local media storage provider (P04) — dev/test only, never the production backend
+.local-storage/

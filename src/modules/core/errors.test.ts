@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { AppError, ERROR_CODES, isAppError, toAppError } from './errors';
 
@@ -45,5 +46,16 @@ describe('toAppError', () => {
   it('handles non-Error throws', () => {
     expect(toAppError('a string').code).toBe('INTERNAL');
     expect(toAppError(undefined).code).toBe('INTERNAL');
+  });
+
+  it('maps a ZodError to VALIDATION_FAILED (422), not INTERNAL', () => {
+    const schema = z.object({ slug: z.string().min(1) });
+    const result = schema.safeParse({ slug: '' });
+    if (result.success) throw new Error('expected the schema to fail');
+
+    const wrapped = toAppError(result.error);
+    expect(wrapped.code).toBe('VALIDATION_FAILED');
+    expect(wrapped.httpStatus).toBe(422);
+    expect(wrapped.details?.issues).toBeDefined();
   });
 });

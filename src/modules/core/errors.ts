@@ -1,3 +1,5 @@
+import { ZodError } from 'zod';
+
 /**
  * One error type for the whole platform.
  *
@@ -170,8 +172,25 @@ export function isAppError(error: unknown): error is AppError {
  * Normalise anything thrown into an AppError. Unknown failures become
  * INTERNAL and keep the original error as `cause` for the logs — the caller
  * never sees raw internals.
+ *
+ * A raw `ZodError` is the one deliberate exception: every service in this
+ * codebase validates its input with `schema.parse(input)` rather than
+ * `safeParse` (see catalog's and media's `*.service.ts` files), so a bad
+ * request surfaces as a thrown `ZodError`, not an `AppError`. Falling
+ * through to INTERNAL here would turn every validation failure — a bad
+ * slug, a missing field, an out-of-range price — into a 500 the caller has
+ * no way to distinguish from an actual bug. It is one, structurally, so it
+ * gets the same treatment `VALIDATION_FAILED` already gets everywhere else.
  */
 export function toAppError(error: unknown): AppError {
   if (isAppError(error)) return error;
+  if (error instanceof ZodError) {
+    return new AppError('VALIDATION_FAILED', {
+      cause: error,
+      details: {
+        issues: error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+      },
+    });
+  }
   return new AppError('INTERNAL', { cause: error });
 }

@@ -28,9 +28,12 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "postinstall": "prisma generate",
     "db:smoke": "node scripts/db-smoke.mjs",
-    "db:migrate-cars": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-cars.mts"
+    "db:migrate-cars": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-cars.mts",
+    "db:migrate-media": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-media.mts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1123.0",
+    "@aws-sdk/s3-request-presigner": "^3.1123.0",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@prisma/client-runtime-utils": "^7.10.0",
@@ -42,6 +45,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.4",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.5.4"
   },
