@@ -71,6 +71,8 @@ appear to pass while proving nothing.
 | `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (s3 provider)   | yes    | server only      | P04   |
 | `MEDIA_PUBLIC_BASE_URL`                                              | no     | server only      | P04   |
 | `AUTH_SECRET`                                                        | yes    | server only      | P06   |
+| `AUTH_TRUST_HOST`                                                    | no     | server only      | P06   |
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (script-only)     | yes    | `create-admin` script only | P06 |
 | `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`                          | yes    | server only      | P11   |
 | `EMAIL_API_KEY`                                                      | yes    | server only      | P11   |
 
@@ -88,6 +90,27 @@ rather than silently pretending an integration exists. See
 `.env.example` for the exact contract and `MediaAsset.provider` for which
 backend actually holds a given asset's bytes today.
 
+### Authentication (P06)
+
+`AUTH_SECRET` signs and encrypts the Auth.js session JWT — Auth.js reads it
+automatically under this exact name, nothing in the codebase passes it
+explicitly. Rotating it is a real, intentional action: every existing admin
+session becomes unverifiable the moment the value changes (the JWT
+signature no longer matches), which is the correct way to force a full
+logout of every admin session at once if one is ever suspected compromised.
+
+`AUTH_TRUST_HOST` is unset (and unnecessary) for local development; set it
+to `"true"` only for a real production deploy sitting behind a reverse
+proxy/load balancer, so Auth.js trusts the forwarded host/protocol headers
+instead of rejecting the request.
+
+`BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD` are read only by
+`pnpm db:create-admin` (`scripts/create-admin.mts`) — never by the running
+app, never written to the database or logged anywhere. The script refuses
+to run without both set; there is no default admin account and no
+credential anywhere in source control, seed data, or the UI (the legacy
+`admin`/`admin123` account was removed in P00 and never comes back).
+
 ## Local setup
 
 ```bash
@@ -100,12 +123,16 @@ createdb luxedrive_test -O luxedrive
 cp .env.example .env          # set DATABASE_URL to match the user you created
 cp .env .env.test             # point it at luxedrive_test
 # .env.example already sets STORAGE_PROVIDER=local; replace
-# MEDIA_UPLOAD_SIGNING_SECRET's placeholder with a real random value in both files.
+# MEDIA_UPLOAD_SIGNING_SECRET's and AUTH_SECRET's placeholders with real
+# random values (`openssl rand -base64 32`) in both files.
 
 # 3. Schema and client
 pnpm install                  # runs `prisma generate` via postinstall
 pnpm db:migrate               # applies migrations to luxedrive_dev
 pnpm db:smoke                 # proves the connection and the typed client work
+
+# 4. First admin account (P06) — one-off, values never committed:
+BOOTSTRAP_ADMIN_EMAIL="owner@example.com" BOOTSTRAP_ADMIN_PASSWORD="a real password, 12+ chars" pnpm db:create-admin
 ```
 
 ## Production (Vercel)

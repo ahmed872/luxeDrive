@@ -11,6 +11,12 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = 'ar';
 
+/** The one cookie that remembers a visitor's language preference —
+ * `proxy.ts` sets/reads it for the URL-prefixed storefront; `/admin` (which
+ * has no `/ar`/`/en` URL prefix of its own) reads the same cookie so a
+ * person's language choice is one preference, not two. */
+export const LOCALE_COOKIE_NAME = 'luxedrive-locale';
+
 export function isLocale(value: string): value is Locale {
   return (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }

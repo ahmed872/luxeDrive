@@ -30,7 +30,9 @@
     "db:smoke": "node scripts/db-smoke.mjs",
     "db:migrate-cars": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-cars.mts",
     "db:migrate-media": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-media.mts",
-    "db:seed-storefront-demo": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-storefront-demo.mts"
+    "db:seed-storefront-demo": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-storefront-demo.mts",
+    "db:create-admin": "NODE_OPTIONS=--conditions=react-server tsx scripts/create-admin.mts",
+    "db:seed-e2e-admins": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-admins.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1123.0",
@@ -42,6 +44,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.38.0",
     "next": "^16.3.4",
+    "next-auth": "5.0.0-beta.32",
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

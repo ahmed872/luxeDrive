@@ -1,7 +1,10 @@
 import path from 'node:path';
+import { createRequire } from 'node:module';
 
 import { config as loadDotenv } from 'dotenv';
 import { defineConfig } from 'vitest/config';
+
+const require = createRequire(import.meta.url);
 
 // Catalog service tests (P03) hit a real PostgreSQL database, unlike P01's
 // pure-function tests — see docs/environments.md for the three-environment
@@ -26,6 +29,12 @@ export default defineConfig({
     // worker processes, but Vitest's own `env` option is.
     env: testEnv,
     globalSetup: ['./vitest.global-setup.ts'],
+    // By default Vite/Vitest treats node_modules packages as SSR-external,
+    // handing them to Node's own resolver directly — which bypasses
+    // `resolve.alias` entirely for anything `next-auth` imports internally.
+    // Forcing it through Vite's own resolve pipeline is what makes the
+    // `next/server` alias below actually apply.
+    server: { deps: { inline: ['next-auth'] } },
   },
   resolve: {
     alias: {
@@ -42,6 +51,17 @@ export default defineConfig({
       // build is a separate config and still fails the moment a client
       // component reaches `db.ts`, per docs/environments.md.
       'server-only': path.resolve(import.meta.dirname, 'node_modules/server-only/empty.js'),
+      // `next-auth`'s own code does `import { NextRequest } from "next/server"`
+      // (no extension) — resolvable by Next's own bundler, but Vitest/Vite's
+      // resolver can't find it as a bare specifier under this pnpm layout
+      // ("Did you mean to import next/server.js?"). `identity/nav-config.ts`
+      // (a `src/lib` file, so it must go through the `@/modules/identity`
+      // barrel, not a deep import — see `no-restricted-imports`) only needs
+      // `roleHasPermission`, but importing anything from that barrel still
+      // evaluates `auth.ts` under Vite/Vitest's eager ESM execution (no
+      // production tree-shaking at test time), so this has to resolve for
+      // any identity-barrel test to run at all, not just next-auth's own.
+      'next/server': require.resolve('next/server.js'),
     },
   },
 });

@@ -1,0 +1,59 @@
+import { test as base } from '@playwright/test';
+import type { Browser, BrowserContext } from '@playwright/test';
+
+import { E2E_OWNER, E2E_STAFF } from './admin-credentials';
+
+type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
+
+/**
+ * A real login, performed once (cached per worker) and reused as storage
+ * state — Playwright's documented pattern for "reuse signed-in state." Every
+ * admin-auth-flow test still submits the real login form for real (that's
+ * the point of those tests); this is only for tests that need to already
+ * *be* signed in to check something else (axe, keyboard nav, permission
+ * gating) — logging in fresh via the UI for each of those would multiply
+ * real `authorize()` calls against the real login rate limiter (P06's own
+ * defense working exactly as intended), which is real security, not a test
+ * bug, but would make an unrelated axe check spuriously trip the rate limit
+ * it isn't testing.
+ */
+async function loginAndCaptureState(
+  browser: Browser,
+  creds: { email: string; password: string },
+): Promise<StorageState> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto('/admin/login');
+  await page.fill('input[name=email]', creds.email);
+  await page.fill('input[name=password]', creds.password);
+  await page.click('button[type=submit]');
+  await page.waitForURL('**/admin');
+  const state = await context.storageState();
+  await context.close();
+  return state;
+}
+
+let ownerStatePromise: Promise<StorageState> | undefined;
+let staffStatePromise: Promise<StorageState> | undefined;
+
+// Playwright's fixture callback is conventionally named `use`, which is
+// also React's hook name — ESLint's `react-hooks` rule (applied globally by
+// `eslint-config-next`) can't tell these apart, so it's renamed here to
+// `provide` purely to avoid a false-positive lint error; it's the exact
+// same Playwright fixture-provider callback either way.
+export const test = base.extend<{ ownerContext: BrowserContext; staffContext: BrowserContext }>({
+  ownerContext: async ({ browser }, provide) => {
+    ownerStatePromise ??= loginAndCaptureState(browser, E2E_OWNER);
+    const context = await browser.newContext({ storageState: await ownerStatePromise });
+    await provide(context);
+    await context.close();
+  },
+  staffContext: async ({ browser }, provide) => {
+    staffStatePromise ??= loginAndCaptureState(browser, E2E_STAFF);
+    const context = await browser.newContext({ storageState: await staffStatePromise });
+    await provide(context);
+    await context.close();
+  },
+});
+
+export { expect } from '@playwright/test';

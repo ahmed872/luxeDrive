@@ -51,6 +51,21 @@ const baseServerEnvSchema = z.object({
    * equivalent of the AWS credentials that sign a real presigned URL.
    * Required only when STORAGE_PROVIDER=local. */
   MEDIA_UPLOAD_SIGNING_SECRET: z.string().min(32).optional(),
+
+  /** Secret. Signs and encrypts the Auth.js JWT session cookie (P06). Read
+   * automatically by Auth.js under this exact name — never pass it in code.
+   * Generate with `openssl rand -base64 32`. */
+  AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be at least 32 characters'),
+  /** Set to "true" only when deployed behind a reverse proxy that Auth.js
+   * should trust for the request's host/protocol (production). Read
+   * automatically by Auth.js under this exact name. */
+  AUTH_TRUST_HOST: z.enum(['true', 'false']).optional(),
+
+  /** Script-only (`scripts/create-admin.mts`) — never read by the running
+   * app, so a missing value here never breaks a normal boot. Deliberately
+   * outside this schema's enforcement: requiring it at all times would mean
+   * every environment needs a bootstrap admin password set forever, when
+   * it's only needed once, by the person running the script. */
 });
 
 export const serverEnvSchema = baseServerEnvSchema.superRefine((value, ctx) => {

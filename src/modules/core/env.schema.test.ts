@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   assertNoPublicSecrets,
+  clientEnvSchema,
   parseClientEnv,
   parseServerEnv,
   serverEnvSchema,
@@ -14,6 +15,8 @@ const validServer = {
   // omitting it is exactly what the "missing signing secret" test below
   // covers, so the general-purpose "valid environment" fixture needs it.
   MEDIA_UPLOAD_SIGNING_SECRET: 'a'.repeat(32),
+  // Required unconditionally (P06) — Auth.js session signing.
+  AUTH_SECRET: 'b'.repeat(32),
 };
 
 describe('parseServerEnv', () => {
@@ -30,6 +33,7 @@ describe('parseServerEnv', () => {
     const result = parseServerEnv({
       DATABASE_URL: validServer.DATABASE_URL,
       MEDIA_UPLOAD_SIGNING_SECRET: validServer.MEDIA_UPLOAD_SIGNING_SECRET,
+      AUTH_SECRET: validServer.AUTH_SECRET,
     });
     expect(result.success && result.data.NODE_ENV).toBe('development');
   });
@@ -86,6 +90,25 @@ describe('parseServerEnv — media storage (P04)', () => {
   });
 });
 
+describe('parseServerEnv — authentication (P06)', () => {
+  it('rejects a missing AUTH_SECRET, naming the variable', () => {
+    const { AUTH_SECRET: _omit, ...rest } = validServer;
+    const result = parseServerEnv(rest);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.message).toContain('AUTH_SECRET');
+  });
+
+  it('rejects an AUTH_SECRET shorter than 32 characters', () => {
+    const result = parseServerEnv({ ...validServer, AUTH_SECRET: 'too-short' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts an optional AUTH_TRUST_HOST of "true" or "false" only', () => {
+    expect(parseServerEnv({ ...validServer, AUTH_TRUST_HOST: 'true' }).success).toBe(true);
+    expect(parseServerEnv({ ...validServer, AUTH_TRUST_HOST: 'yes' }).success).toBe(false);
+  });
+});
+
 describe('parseClientEnv', () => {
   it('accepts a valid public environment', () => {
     const result = parseClientEnv({
@@ -115,5 +138,17 @@ describe('assertNoPublicSecrets', () => {
     expect(() => assertNoPublicSecrets(['DATABASE_URL', 'NEXT_PUBLIC_STRIPE_SECRET'])).toThrow(
       /NEXT_PUBLIC_STRIPE_SECRET/,
     );
+  });
+});
+
+describe('P06 security — no auth secret ever reaches the client env schema', () => {
+  it('AUTH_SECRET is not a client-env key (it would be inlined into the browser bundle if it were)', () => {
+    expect(Object.keys(clientEnvSchema.shape)).not.toContain('AUTH_SECRET');
+  });
+
+  it('the bootstrap-admin credentials are not parsed by any env schema at all — script-only, read directly from process.env', () => {
+    const allKeys = [...Object.keys(serverEnvSchema.shape), ...Object.keys(clientEnvSchema.shape)];
+    expect(allKeys).not.toContain('BOOTSTRAP_ADMIN_EMAIL');
+    expect(allKeys).not.toContain('BOOTSTRAP_ADMIN_PASSWORD');
   });
 });
