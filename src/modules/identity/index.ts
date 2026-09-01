@@ -39,6 +39,7 @@ export {
 
 export {
   createUser,
+  listStaffUsers,
   getUserByEmail,
   getUserById,
   setUserActive,

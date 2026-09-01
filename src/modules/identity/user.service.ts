@@ -33,6 +33,24 @@ export async function getUserById(id: string): Promise<User | null> {
   return db.user.findUnique({ where: { id } });
 }
 
+/**
+ * The staff accounts an admin screen can filter or attribute by — every
+ * role that can act on the store, customers excluded.
+ *
+ * Selected down to id/name/email/role on purpose: this feeds a filter
+ * dropdown and an "who did this" column, and neither has any business
+ * receiving a password hash. Never widen this to the whole `User` row.
+ */
+export async function listStaffUsers(): Promise<
+  { id: string; name: string | null; email: string; role: Role }[]
+> {
+  return db.user.findMany({
+    where: { role: { not: 'CUSTOMER' } },
+    select: { id: true, name: true, email: true, role: true },
+    orderBy: [{ name: 'asc' }, { email: 'asc' }],
+  });
+}
+
 export async function createUser(input: CreateUserInput): Promise<User> {
   const passwordHash = await hashPassword(input.password);
   try {

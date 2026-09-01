@@ -11,6 +11,11 @@
  * `updateVariant` refuses the stock field precisely so that this is the
  * only path.
  *
+ * Reading variant rows is not this module's job: the admin inventory screen
+ * lists them through `catalog`'s `listVariantsForAdmin`, the same query the
+ * pricing screen uses. Owning the writes does not require a second read
+ * path that would drift from it.
+ *
  * Other modules import `@/modules/inventory`, never a file inside it.
  */
 
@@ -29,12 +34,3 @@ export {
   type AdjustmentHistoryItem,
   type AdjustmentHistoryResult,
 } from './inventory.service';
-
-export {
-  listInventory,
-  type InventoryListingQuery,
-  type InventoryListingItem,
-  type InventoryListingResult,
-  type InventoryStockFilter,
-  type InventorySort,
-} from './inventory-listing.service';

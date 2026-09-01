@@ -202,15 +202,9 @@ describe('updateVariant — stock is not writable here (P08)', () => {
     // Rejected rather than stripped: a caller that thinks it just set the
     // stock and gets a success back would be badly misled. Stock moves only
     // through `inventory.adjustStock`, which records why.
-    await expect(
-      updateVariant(variant!.id, { stockQuantity: 99 } as never),
-    ).rejects.toThrow();
-    await expect(
-      updateVariant(variant!.id, { trackInventory: false } as never),
-    ).rejects.toThrow();
-    await expect(
-      updateVariant(variant!.id, { lowStockThreshold: 3 } as never),
-    ).rejects.toThrow();
+    await expect(updateVariant(variant!.id, { stockQuantity: 99 } as never)).rejects.toThrow();
+    await expect(updateVariant(variant!.id, { trackInventory: false } as never)).rejects.toThrow();
+    await expect(updateVariant(variant!.id, { lowStockThreshold: 3 } as never)).rejects.toThrow();
 
     const [after] = await listVariants(product.id);
     expect(after!.stockQuantity).toBe(variant!.stockQuantity);

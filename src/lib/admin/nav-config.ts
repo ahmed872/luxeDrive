@@ -27,6 +27,9 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { slug: 'categories', permission: 'categories.manage', group: 'catalog' },
   { slug: 'brands', permission: 'brands.manage', group: 'catalog' },
   { slug: 'inventory', permission: 'inventory.read', group: 'catalog' },
+  // P08. `products.update`, not `inventory.*`: changing what something costs
+  // is a catalog write, which is why STAFF can count stock but not reprice.
+  { slug: 'pricing', permission: 'products.update', group: 'catalog' },
   { slug: 'orders', permission: 'orders.read', group: 'sales' },
   { slug: 'customers', permission: 'customers.read', group: 'sales' },
   { slug: 'discounts', permission: 'discounts.manage', group: 'sales' },

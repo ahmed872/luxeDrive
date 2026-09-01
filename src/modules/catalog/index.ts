@@ -97,6 +97,15 @@ export {
 } from './admin-product-listing.service';
 
 export {
+  listVariantsForAdmin,
+  type VariantListingQuery,
+  type VariantListingItem,
+  type VariantListingResult,
+  type VariantStockFilter,
+  type VariantListingSort,
+} from './admin-variant-listing.service';
+
+export {
   listProducts,
   getFilterableAttributes,
   getRelatedProducts,

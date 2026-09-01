@@ -41,7 +41,15 @@ export type AuditAction =
   | 'attribute_definition.deleted'
   | 'variant.created'
   | 'variant.updated'
-  | 'variant.deleted';
+  | 'variant.deleted'
+  // P08 — inventory and pricing. Stock and price are the two numbers a
+  // dispute is argued over, so each movement is its own event rather than a
+  // generic `variant.updated`: "who set this to 3, and why" has to be
+  // answerable from the log alone.
+  | 'inventory.adjusted'
+  | 'inventory.policy_changed'
+  | 'price.updated'
+  | 'price.bulk_updated';
 
 /** Every entity type an audit event can be about — `entityType` is a plain
  * string column at the DB level (no enum constraint), but a fixed union

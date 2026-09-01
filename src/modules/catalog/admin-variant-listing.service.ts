@@ -1,34 +1,45 @@
 import type { Prisma, ProductStatus } from '@generated/prisma';
 
 import { db } from '@/modules/core';
-import { resolveVariantStockStatus, type StockStatus } from '@/modules/catalog';
+
+import { resolveVariantStockStatus, type StockStatus } from './stock-status';
 
 /**
- * The inventory screen's one query.
+ * One variant-level listing, shared by the admin inventory and pricing
+ * screens (P08 §9/§10).
  *
- * Rows are *variants*, not products: stock belongs to the variant, and an
- * admin restocking size 41 in black should not have to page through the
- * product that owns it. Every filter is SQL — a catalog with ten thousand
- * variants must not become ten thousand rows in a browser (P08 §10).
+ * Rows are *variants*, not products: both stock and price belong to the
+ * variant, and an admin restocking size 41 in black should not have to page
+ * through the product that owns it. The two screens differ only in which
+ * filters they expose and how they sort, which is why this is one query
+ * rather than two that drift apart.
+ *
+ * Lives in `catalog` because it reads catalog rows. `inventory` owns every
+ * *write* to `stockQuantity`; nothing about that ownership requires a
+ * second read path.
+ *
+ * Every filter is SQL. A catalog with ten thousand variants must never
+ * become ten thousand rows in a browser.
  */
 
-export type InventoryStockFilter = 'in_stock' | 'low_stock' | 'out_of_stock' | 'untracked';
-export type InventorySort = 'stock-asc' | 'stock-desc' | 'sku-asc' | 'updated-desc';
+export type VariantStockFilter = 'in_stock' | 'low_stock' | 'out_of_stock' | 'untracked';
+export type VariantListingSort =
+  'stock-asc' | 'stock-desc' | 'price-asc' | 'price-desc' | 'sku-asc' | 'updated-desc';
 
-export interface InventoryListingQuery {
+export interface VariantListingQuery {
   /** Matches a variant SKU, or the product's Arabic/English name. */
   q?: string;
   productId?: string;
   categoryId?: string;
   brandId?: string;
   status?: ProductStatus;
-  stock?: InventoryStockFilter;
+  stock?: VariantStockFilter;
   page?: number;
   pageSize?: number;
-  sort?: InventorySort;
+  sort?: VariantListingSort;
 }
 
-export interface InventoryListingItem {
+export interface VariantListingItem {
   variantId: string;
   sku: string;
   variantLabelAr: string | null;
@@ -42,11 +53,12 @@ export interface InventoryListingItem {
   trackInventory: boolean;
   stockStatus: StockStatus;
   priceMinor: number;
+  compareAtMinor: number | null;
   updatedAt: Date;
 }
 
-export interface InventoryListingResult {
-  items: InventoryListingItem[];
+export interface VariantListingResult {
+  items: VariantListingItem[];
   total: number;
   page: number;
   pageSize: number;
@@ -57,34 +69,28 @@ const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
 /**
- * "Low stock" is `0 < quantity <= threshold` on a tracked variant — the
- * same rule `resolveVariantStockStatus` applies when rendering a badge.
- * Expressed here as a `where` clause so the filter narrows in the database
- * rather than after the fact; a variant whose threshold is 0 can never be
- * low, only in or out of stock, which is why the comparison is against the
- * column rather than a constant.
+ * "Low stock" is `0 < quantity <= threshold` on a tracked variant — the same
+ * rule `resolveVariantStockStatus` applies when rendering a badge, so the
+ * filter and the badge can never disagree. Expressed as a `where` clause so
+ * it narrows in the database rather than after the fact.
  */
-function stockWhere(filter: InventoryStockFilter): Prisma.VariantWhereInput {
+function stockWhere(filter: VariantStockFilter): Prisma.VariantWhereInput {
   switch (filter) {
     case 'untracked':
       return { trackInventory: false };
     case 'out_of_stock':
       return { trackInventory: true, stockQuantity: { lte: 0 } };
     case 'low_stock':
-      return {
-        trackInventory: true,
-        stockQuantity: { gt: 0 },
-        lowStockThreshold: { gt: 0 },
-        // Prisma cannot compare two columns in a `where`, so the
-        // quantity <= threshold half is applied as a raw column comparison
-        // through `AND` on the same table.
-      };
+      // The `quantity <= threshold` half is a column-to-column comparison,
+      // applied below as a raw id narrowing; a threshold of 0 can never be
+      // "low", only in or out of stock.
+      return { trackInventory: true, stockQuantity: { gt: 0 }, lowStockThreshold: { gt: 0 } };
     case 'in_stock':
       return { OR: [{ trackInventory: false }, { stockQuantity: { gt: 0 } }] };
   }
 }
 
-function buildWhere(query: InventoryListingQuery): Prisma.VariantWhereInput {
+function buildWhere(query: VariantListingQuery): Prisma.VariantWhereInput {
   const product: Prisma.ProductWhereInput = { deletedAt: null };
   if (query.productId) product.id = query.productId;
   if (query.categoryId) product.categoryId = query.categoryId;
@@ -106,25 +112,33 @@ function buildWhere(query: InventoryListingQuery): Prisma.VariantWhereInput {
   return where;
 }
 
-function buildOrderBy(sort: InventorySort | undefined): Prisma.VariantOrderByWithRelationInput[] {
+/** `id` is always the tiebreaker, so a page boundary can never drop or
+ * repeat a row when two variants share a price or a quantity. */
+function buildOrderBy(
+  sort: VariantListingSort | undefined,
+): Prisma.VariantOrderByWithRelationInput[] {
   switch (sort) {
     case 'stock-desc':
       return [{ stockQuantity: 'desc' }, { id: 'asc' }];
+    case 'price-asc':
+      return [{ priceMinor: 'asc' }, { id: 'asc' }];
+    case 'price-desc':
+      return [{ priceMinor: 'desc' }, { id: 'asc' }];
     case 'sku-asc':
       return [{ sku: 'asc' }, { id: 'asc' }];
     case 'updated-desc':
       return [{ updatedAt: 'desc' }, { id: 'asc' }];
     case 'stock-asc':
     default:
-      // The default an inventory manager actually wants: what is closest to
-      // running out, first. `id` breaks ties so paging is stable.
+      // The default an inventory manager actually wants: whatever is closest
+      // to running out, first.
       return [{ stockQuantity: 'asc' }, { id: 'asc' }];
   }
 }
 
-export async function listInventory(
-  query: InventoryListingQuery = {},
-): Promise<InventoryListingResult> {
+export async function listVariantsForAdmin(
+  query: VariantListingQuery = {},
+): Promise<VariantListingResult> {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, query.pageSize ?? DEFAULT_PAGE_SIZE));
   const where = buildWhere(query);
@@ -132,7 +146,7 @@ export async function listInventory(
   // The low-stock filter needs `stockQuantity <= lowStockThreshold`, a
   // column-to-column comparison Prisma's `where` cannot express. The ids
   // come from one raw query and narrow the main one, which keeps a single
-  // paginated round trip instead of fetching rows to filter in memory.
+  // paginated round trip rather than fetching rows to filter in memory.
   if (query.stock === 'low_stock') {
     const lowIds = await db.$queryRaw<{ id: string }[]>`
       SELECT id FROM variants
@@ -171,6 +185,7 @@ export async function listInventory(
       trackInventory: row.trackInventory,
       stockStatus: resolveVariantStockStatus(row),
       priceMinor: row.priceMinor,
+      compareAtMinor: row.compareAtMinor,
       updatedAt: row.updatedAt,
     })),
     total,
