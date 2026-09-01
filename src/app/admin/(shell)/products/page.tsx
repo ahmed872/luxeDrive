@@ -16,6 +16,7 @@ import { formatMoney } from '@/modules/core';
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, isLocale, type Locale } from '@/lib/i18n/locales';
 import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
 import { requireAdminPermission } from '@/lib/admin/require-admin';
+import { roleHasPermission } from '@/modules/identity';
 import { AdminBreadcrumbs } from '@/components/admin/admin-breadcrumbs';
 import { PageHeader } from '@/components/admin/page-header';
 import { ProductsToolbar, type ProductsToolbarOption } from '@/components/admin/products-toolbar';
@@ -63,7 +64,7 @@ export default async function AdminProductsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdminPermission('products.read');
+  const user = await requireAdminPermission('products.read');
 
   const params = await searchParams;
   const one = (key: string): string | undefined => {
@@ -190,6 +191,7 @@ export default async function AdminProductsPage({
         page={result.page}
         pageCount={result.pageCount}
         locale={locale}
+        canEdit={roleHasPermission(user.role, 'products.update')}
         labels={{
           colProduct: t.products.colProduct,
           colSku: t.products.colSku,
@@ -212,6 +214,15 @@ export default async function AdminProductsPage({
           previousPage: t.products.previousPage,
           nextPage: t.products.nextPage,
           pageLabel: t.products.pageLabel,
+          bulkToolbar: t.products.bulkToolbar,
+          bulkClear: t.products.bulkClear,
+          bulkSelected: t.products.bulkSelected,
+          bulkPublish: t.products.bulkPublish,
+          bulkArchive: t.products.bulkArchive,
+          bulkDone: t.products.bulkDone,
+          bulkPartial: t.products.bulkPartial,
+          selectAll: t.products.selectAll,
+          selectRow: t.products.selectRow,
         }}
       />
     </div>

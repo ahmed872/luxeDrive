@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
+import { useState } from 'react';
+
 import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
+import { BulkActionBar } from '@/components/admin/bulk-action-bar';
+import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
+import { toast } from '@/components/ui/toast';
+import { bulkProductStatusAction } from '@/lib/admin/product-actions';
 import { StatusBadge, type StatusTone } from '@/components/admin/status-badge';
 import { Pagination } from '@/components/ui/pagination';
 import type { Locale } from '@/lib/i18n/locales';
@@ -49,6 +56,15 @@ export interface ProductsTableLabels {
   previousPage: string;
   nextPage: string;
   pageLabel: string;
+  bulkToolbar: string;
+  bulkClear: string;
+  bulkSelected: string;
+  bulkPublish: string;
+  bulkArchive: string;
+  bulkDone: string;
+  bulkPartial: string;
+  selectAll: string;
+  selectRow: string;
 }
 
 const STATUS_TONE: Record<ProductRowStatus, StatusTone> = {
@@ -67,20 +83,56 @@ export function ProductsTable({
   rows,
   page,
   pageCount,
+  locale,
+  canEdit,
   labels,
 }: {
   rows: ProductTableRow[];
   page: number;
   pageCount: number;
-  /** Kept in the props even though every displayed string arrives
-   * pre-resolved: the row link target is locale-independent, but future
-   * per-locale formatting in this table would need it. */
-  locale?: Locale;
+  locale: Locale;
+  /** `products.update`. Selection, the bulk bar, and the row link's target
+   * all follow it: a role that can only read lands on the read-only
+   * preview instead of an edit page it would be refused. The server checks
+   * the permission again on every one of those routes regardless. */
+  canEdit: boolean;
   labels: ProductsTableLabels;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
+  async function runBulk(operation: 'publish' | 'archive'): Promise<void> {
+    setBulkBusy(true);
+    setBulkError(null);
+    const result = await bulkProductStatusAction([...selectedIds], operation, locale);
+    setBulkBusy(false);
+
+    if (!result.ok) {
+      setBulkError(result.error ?? null);
+      return;
+    }
+    const { succeeded, failures } = result.data ?? { succeeded: 0, failures: [] };
+    if (failures.length > 0) {
+      // A partial result is not a success: the banner names how many were
+      // refused and why, since "3 of 10" without a reason is unactionable.
+      setBulkError(
+        `${labels.bulkPartial
+          .replace('{count}', String(succeeded))
+          .replace('{failed}', String(failures.length))} ${failures[0]?.error ?? ''}`,
+      );
+    } else {
+      toast({
+        title: labels.bulkDone.replace('{count}', String(succeeded)),
+        variant: 'success',
+      });
+    }
+    setSelectedIds(new Set());
+    router.refresh();
+  }
 
   const statusLabel: Record<ProductRowStatus, string> = {
     DRAFT: labels.statusDraft,
@@ -99,7 +151,7 @@ export function ProductsTable({
       header: labels.colProduct,
       cell: (row) => (
         <Link
-          href={`/admin/products/${row.id}`}
+          href={canEdit ? `/admin/products/${row.id}` : `/admin/products/${row.id}/preview`}
           className="font-medium text-(--color-text) hover:underline"
         >
           {row.name}
@@ -174,14 +226,21 @@ export function ProductsTable({
 
   return (
     <div className="flex flex-col gap-4">
+      {bulkError ? (
+        <Alert variant="error" role="alert">
+          {bulkError}
+        </Alert>
+      ) : null}
+
       <DataTable
         columns={columns}
         rows={rows}
         getRowId={(row) => row.id}
         emptyTitle={labels.emptyTitle}
         emptyDescription={labels.emptyDescription}
-        selectAllLabel={labels.actions}
-        selectRowLabel={labels.actions}
+        selectAllLabel={labels.selectAll}
+        selectRowLabel={labels.selectRow}
+        {...(canEdit ? { selectedIds, onSelectedIdsChange: setSelectedIds } : {})}
       />
 
       {pageCount > 1 ? (
@@ -195,6 +254,31 @@ export function ProductsTable({
             next: labels.nextPage,
             page: (n) => labels.pageLabel.replace('{n}', String(n)),
           }}
+        />
+      ) : null}
+
+      {canEdit ? (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onClear={() => setSelectedIds(new Set())}
+          toolbarLabel={labels.bulkToolbar}
+          clearLabel={labels.bulkClear}
+          countLabel={(count) => labels.bulkSelected.replace('{count}', String(count))}
+          actions={
+            <>
+              <Button size="sm" disabled={bulkBusy} onClick={() => void runBulk('publish')}>
+                {labels.bulkPublish}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={bulkBusy}
+                onClick={() => void runBulk('archive')}
+              >
+                {labels.bulkArchive}
+              </Button>
+            </>
+          }
         />
       ) : null}
     </div>

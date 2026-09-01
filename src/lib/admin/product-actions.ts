@@ -163,6 +163,60 @@ export async function deleteProductAction(id: string, locale: Locale): Promise<A
   }
 }
 
+export interface BulkResult {
+  succeeded: number;
+  /** One entry per product that could not be changed, so the admin sees
+   * exactly which ones and why instead of a bare "3 of 10 failed". */
+  failures: { id: string; error: string }[];
+}
+
+/**
+ * Bulk publish / archive (P07 §14 — only the bulk operations that carry
+ * real value; there is no bulk delete here, and no bulk edit of fields
+ * nobody asked to change in bulk).
+ *
+ * Not a shortcut past the rules: the permission is checked once for the
+ * caller, then each product goes through the same domain call a single
+ * publish or archive would, so a product that is not publishable is
+ * skipped and reported rather than forced through. Each success is
+ * audited individually — "who published these twelve products" has to be
+ * answerable per product, not per click.
+ */
+export async function bulkProductStatusAction(
+  ids: string[],
+  operation: 'publish' | 'archive',
+  locale: Locale,
+): Promise<ActionResult<BulkResult>> {
+  try {
+    const user = await requirePermission('products.update');
+    const result: BulkResult = { succeeded: 0, failures: [] };
+
+    for (const id of ids) {
+      try {
+        const product =
+          operation === 'publish' ? await publishProduct(id) : await archiveProduct(id);
+        await recordAuditEvent({
+          action: operation === 'publish' ? 'product.published' : 'product.archived',
+          entityType: 'Product',
+          userId: user.id,
+          entityId: product.id,
+          after: { status: product.status, bulk: true },
+        });
+        result.succeeded += 1;
+      } catch (error) {
+        result.failures.push({ id, error: adminErrorMessage(error, locale) });
+      }
+    }
+
+    revalidatePath('/admin/products');
+    return { ok: true, data: result };
+  } catch (error) {
+    // Only a failure of the permission check itself reaches here — a
+    // per-product failure is data in `failures`, not an error.
+    return { ok: false, error: adminErrorMessage(error, locale) };
+  }
+}
+
 export interface AttributeFieldDefinition {
   id: string;
   key: string;
