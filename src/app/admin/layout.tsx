@@ -4,7 +4,12 @@ import { Direction } from 'radix-ui';
 
 import { latin, arabic } from '@/lib/fonts';
 import { THEME_BOOTSTRAP } from '@/lib/theme-bootstrap';
-import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, directionForLocale, isLocale } from '@/lib/i18n/locales';
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE_NAME,
+  directionForLocale,
+  isLocale,
+} from '@/lib/i18n/locales';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toast';
 

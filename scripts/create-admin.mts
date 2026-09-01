@@ -32,7 +32,7 @@ const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
 if (!email || !password) {
   console.error(
     'BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD must both be set in the environment.\n' +
-      'Example: BOOTSTRAP_ADMIN_EMAIL=owner@example.com BOOTSTRAP_ADMIN_PASSWORD=\'...\' pnpm db:create-admin',
+      "Example: BOOTSTRAP_ADMIN_EMAIL=owner@example.com BOOTSTRAP_ADMIN_PASSWORD='...' pnpm db:create-admin",
   );
   process.exit(1);
 }
@@ -43,7 +43,8 @@ if (!email || !password) {
 // here breaks on a React-context mismatch. This script only ever needs the
 // two files below, neither of which touches `next-auth`.
 const { createUser, getUserByEmail } = await import('../src/modules/identity/user.service.js');
-const { hashPassword, validatePasswordPolicy } = await import('../src/modules/identity/password.js');
+const { hashPassword, validatePasswordPolicy } =
+  await import('../src/modules/identity/password.js');
 const { db } = await import('../src/modules/core/index.js');
 
 const policyError = validatePasswordPolicy(password);
@@ -61,7 +62,9 @@ if (existing) {
     where: { id: existing.id },
     data: { passwordHash, role: 'OWNER', active: true },
   });
-  console.log(`✓ Existing user "${normalizedEmail}" updated: password reset, role set to OWNER, active.`);
+  console.log(
+    `✓ Existing user "${normalizedEmail}" updated: password reset, role set to OWNER, active.`,
+  );
 } else {
   await createUser({ email: normalizedEmail, password, role: 'OWNER', name: 'Owner' });
   console.log(`✓ Admin account "${normalizedEmail}" created with role OWNER.`);

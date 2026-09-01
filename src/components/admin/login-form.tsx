@@ -92,12 +92,22 @@ export function LoginForm({ labels }: { labels: LoginFormLabels }) {
             aria-pressed={showPassword}
             className="absolute inset-y-0 end-0 flex w-10 items-center justify-center text-(--color-text-muted) outline-none transition-colors duration-(--duration-fast) hover:text-(--color-text) focus-visible:ring-2 focus-visible:ring-(--color-ring)/25 disabled:pointer-events-none disabled:opacity-50"
           >
-            {showPassword ? <EyeOff className="size-4.5" aria-hidden="true" /> : <Eye className="size-4.5" aria-hidden="true" />}
+            {showPassword ? (
+              <EyeOff className="size-4.5" aria-hidden="true" />
+            ) : (
+              <Eye className="size-4.5" aria-hidden="true" />
+            )}
           </button>
         </div>
       </div>
 
-      <Button type="submit" size="lg" loading={isPending} disabled={isPending} className="mt-1 w-full">
+      <Button
+        type="submit"
+        size="lg"
+        loading={isPending}
+        disabled={isPending}
+        className="mt-1 w-full"
+      >
         {isPending ? labels.submitting : labels.submit}
       </Button>
     </form>

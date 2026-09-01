@@ -1,7 +1,12 @@
 import { redirect } from 'next/navigation';
 
 import { isAppError } from '@/modules/core';
-import { requirePermission, requireUser, type AuthenticatedUser, type Permission } from '@/modules/identity';
+import {
+  requirePermission,
+  requireUser,
+  type AuthenticatedUser,
+  type Permission,
+} from '@/modules/identity';
 
 /**
  * Page-level wrappers around `identity`'s `requireUser`/`requirePermission`.

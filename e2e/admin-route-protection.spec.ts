@@ -24,7 +24,9 @@ test.describe('unauthenticated direct access', () => {
     await page.waitForURL('**/admin/login');
   });
 
-  test('/admin/settings (a specific protected section) redirects to /admin/login', async ({ page }) => {
+  test('/admin/settings (a specific protected section) redirects to /admin/login', async ({
+    page,
+  }) => {
     await page.goto('/admin/settings');
     await page.waitForURL('**/admin/login');
   });
@@ -53,7 +55,9 @@ test.describe('authenticated but unauthorized direct access (permission-aware, s
     // Whatever status Next's default error handling assigns a thrown
     // FORBIDDEN, the protected content itself must never have rendered.
     expect(response?.ok()).toBeFalsy();
-    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toHaveCount(0);
+    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toHaveCount(
+      0,
+    );
   });
 
   test('STAFF signed in, typing /admin/users directly (Super-Admin-only), never sees it either', async ({
@@ -62,10 +66,14 @@ test.describe('authenticated but unauthorized direct access (permission-aware, s
     const page = await staffContext.newPage();
     const response = await page.goto('/admin/users');
     expect(response?.ok()).toBeFalsy();
-    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toHaveCount(0);
+    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toHaveCount(
+      0,
+    );
   });
 
-  test('STAFF *can* reach a section their role does hold permission for (Products)', async ({ staffContext }) => {
+  test('STAFF *can* reach a section their role does hold permission for (Products)', async ({
+    staffContext,
+  }) => {
     const page = await staffContext.newPage();
     await page.goto('/admin/products');
     await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toBeVisible();

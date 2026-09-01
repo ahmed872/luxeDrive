@@ -49,11 +49,17 @@ export interface LoginActionState {
  * rethrown rather than swallowed — swallowing it here would break the
  * post-login redirect.
  */
-export async function loginAction(_prevState: LoginActionState, formData: FormData): Promise<LoginActionState> {
+export async function loginAction(
+  _prevState: LoginActionState,
+  formData: FormData,
+): Promise<LoginActionState> {
   const rawEmail = formData.get('email');
   const email = typeof rawEmail === 'string' ? rawEmail : null;
 
-  const parsed = credentialsSchema.safeParse({ email: rawEmail, password: formData.get('password') });
+  const parsed = credentialsSchema.safeParse({
+    email: rawEmail,
+    password: formData.get('password'),
+  });
   if (!parsed.success) return { error: 'validation', email };
 
   try {
@@ -65,7 +71,10 @@ export async function loginAction(_prevState: LoginActionState, formData: FormDa
     });
   } catch (error) {
     if (error instanceof CredentialsSignin) {
-      return { error: error.code === 'rate_limited' ? 'rate_limited' : 'invalid_credentials', email };
+      return {
+        error: error.code === 'rate_limited' ? 'rate_limited' : 'invalid_credentials',
+        email,
+      };
     }
     if (error instanceof AuthError) {
       return { error: 'invalid_credentials', email };

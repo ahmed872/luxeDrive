@@ -59,22 +59,22 @@ appear to pass while proving nothing.
 
 ## Which values are secret
 
-| Variable                                                             | Secret | Used from        | Phase |
-| -------------------------------------------------------------------- | ------ | ---------------- | ----- |
-| `DATABASE_URL`                                                       | yes    | server only      | now   |
-| `NEXT_PUBLIC_SITE_URL`                                               | no     | browser + server | now   |
-| `NEXT_PUBLIC_DEFAULT_LOCALE`                                         | no     | browser + server | now   |
-| `STORAGE_PROVIDER`                                                   | no     | server only      | P04   |
-| `MEDIA_UPLOAD_SIGNING_SECRET` (local provider)                       | yes    | server only      | P04   |
-| `MEDIA_LOCAL_STORAGE_DIR` (local provider)                           | no     | server only      | P04   |
-| `STORAGE_BUCKET`, `STORAGE_ENDPOINT`, `STORAGE_REGION` (s3 provider) | no     | server only      | P04   |
-| `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (s3 provider)   | yes    | server only      | P04   |
-| `MEDIA_PUBLIC_BASE_URL`                                              | no     | server only      | P04   |
-| `AUTH_SECRET`                                                        | yes    | server only      | P06   |
-| `AUTH_TRUST_HOST`                                                    | no     | server only      | P06   |
-| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (script-only)     | yes    | `create-admin` script only | P06 |
-| `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`                          | yes    | server only      | P11   |
-| `EMAIL_API_KEY`                                                      | yes    | server only      | P11   |
+| Variable                                                             | Secret | Used from                  | Phase |
+| -------------------------------------------------------------------- | ------ | -------------------------- | ----- |
+| `DATABASE_URL`                                                       | yes    | server only                | now   |
+| `NEXT_PUBLIC_SITE_URL`                                               | no     | browser + server           | now   |
+| `NEXT_PUBLIC_DEFAULT_LOCALE`                                         | no     | browser + server           | now   |
+| `STORAGE_PROVIDER`                                                   | no     | server only                | P04   |
+| `MEDIA_UPLOAD_SIGNING_SECRET` (local provider)                       | yes    | server only                | P04   |
+| `MEDIA_LOCAL_STORAGE_DIR` (local provider)                           | no     | server only                | P04   |
+| `STORAGE_BUCKET`, `STORAGE_ENDPOINT`, `STORAGE_REGION` (s3 provider) | no     | server only                | P04   |
+| `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (s3 provider)   | yes    | server only                | P04   |
+| `MEDIA_PUBLIC_BASE_URL`                                              | no     | server only                | P04   |
+| `AUTH_SECRET`                                                        | yes    | server only                | P06   |
+| `AUTH_TRUST_HOST`                                                    | no     | server only                | P06   |
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (script-only)    | yes    | `create-admin` script only | P06   |
+| `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`                          | yes    | server only                | P11   |
+| `EMAIL_API_KEY`                                                      | yes    | server only                | P11   |
 
 The P11 ones are documented in `.env.example` but not in the schema yet:
 requiring a variable no code reads would fail every build for nothing.

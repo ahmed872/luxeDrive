@@ -17,7 +17,11 @@ beforeEach(async () => {
 
 describe('createUser', () => {
   it('creates a user with a hashed password, never the plaintext', async () => {
-    const user = await createUser({ email: 'Owner@Example.com', password: 'correct-horse-9', role: 'OWNER' });
+    const user = await createUser({
+      email: 'Owner@Example.com',
+      password: 'correct-horse-9',
+      role: 'OWNER',
+    });
     expect(user.email).toBe('owner@example.com'); // normalized
     expect(user.passwordHash).not.toContain('correct-horse-9');
     expect(user.active).toBe(true);
@@ -33,7 +37,11 @@ describe('createUser', () => {
 
 describe('getUserByEmail / getUserById', () => {
   it('finds a user case-insensitively by email', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     expect((await getUserByEmail('A@Example.com'))?.id).toBe(user.id);
     expect((await getUserById(user.id))?.email).toBe('a@example.com');
   });
@@ -46,7 +54,11 @@ describe('getUserByEmail / getUserById', () => {
 
 describe('setUserActive / setUserRole', () => {
   it('disables and re-enables a user', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const disabled = await setUserActive(user.id, false);
     expect(disabled.active).toBe(false);
     const reenabled = await setUserActive(user.id, true);
@@ -54,13 +66,19 @@ describe('setUserActive / setUserRole', () => {
   });
 
   it('changes a role', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const promoted = await setUserRole(user.id, 'MANAGER');
     expect(promoted.role).toBe('MANAGER');
   });
 
   it('rejects an id that does not exist', async () => {
-    await expect(setUserActive('00000000-0000-0000-0000-000000000000', false)).rejects.toMatchObject({
+    await expect(
+      setUserActive('00000000-0000-0000-0000-000000000000', false),
+    ).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });
@@ -89,7 +107,11 @@ describe('verifyAdminCredentials', () => {
   });
 
   it('rejects a disabled admin even with the correct password', async () => {
-    const user = await createUser({ email: 'owner@example.com', password: 'correct-horse-9', role: 'OWNER' });
+    const user = await createUser({
+      email: 'owner@example.com',
+      password: 'correct-horse-9',
+      role: 'OWNER',
+    });
     await setUserActive(user.id, false);
     expect(await verifyAdminCredentials('owner@example.com', 'correct-horse-9')).toEqual({
       ok: false,
@@ -98,7 +120,11 @@ describe('verifyAdminCredentials', () => {
   });
 
   it('rejects a CUSTOMER account — a correct password alone is not an admin credential', async () => {
-    await createUser({ email: 'shopper@example.com', password: 'correct-horse-9', role: 'CUSTOMER' });
+    await createUser({
+      email: 'shopper@example.com',
+      password: 'correct-horse-9',
+      role: 'CUSTOMER',
+    });
     expect(await verifyAdminCredentials('shopper@example.com', 'correct-horse-9')).toEqual({
       ok: false,
       reason: 'NOT_ADMIN',
@@ -108,7 +134,11 @@ describe('verifyAdminCredentials', () => {
 
 describe('touchLastLogin', () => {
   it('sets lastLoginAt', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     expect(user.lastLoginAt).toBeNull();
     await touchLastLogin(user.id);
     expect((await getUserById(user.id))?.lastLoginAt).not.toBeNull();

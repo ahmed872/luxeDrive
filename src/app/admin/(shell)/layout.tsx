@@ -57,7 +57,11 @@ export default async function AdminShellLayout({ children }: { children: React.R
             name={name ?? null}
             email={email ?? ''}
             roleLabel={roleLabel}
-            labels={{ userMenu: t.shell.userMenu, signOut: t.shell.signOut, signingOut: t.shell.signingOut }}
+            labels={{
+              userMenu: t.shell.userMenu,
+              signOut: t.shell.signOut,
+              signingOut: t.shell.signingOut,
+            }}
           />
         </header>
 

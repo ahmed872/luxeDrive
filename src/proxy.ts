@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, SUPPORTED_LOCALES, isLocale, type Locale } from '@/lib/i18n/locales';
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE_NAME,
+  SUPPORTED_LOCALES,
+  isLocale,
+  type Locale,
+} from '@/lib/i18n/locales';
 
 /**
  * Locale routing (P05). Every storefront page lives under `/ar/...` or

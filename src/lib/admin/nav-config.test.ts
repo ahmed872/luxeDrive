@@ -43,7 +43,9 @@ describe('buildAdminNavSections', () => {
 
   it('CUSTOMER sees only the Dashboard entry — no admin group has any permission it holds', () => {
     const sections = buildAdminNavSections('CUSTOMER', 'en');
-    expect(sections).toEqual([{ key: 'overview', items: [{ key: 'dashboard', label: 'Dashboard', href: '/admin' }] }]);
+    expect(sections).toEqual([
+      { key: 'overview', items: [{ key: 'dashboard', label: 'Dashboard', href: '/admin' }] },
+    ]);
   });
 
   it('renders each item label in the requested language', () => {

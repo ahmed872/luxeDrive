@@ -12,7 +12,9 @@ vi.mock('./auth', () => ({ auth: authMock }));
 // UI — is covered by Task 22's security test matrix).
 const { requireUser, requirePermission, getOptionalUser } = await import('./authorize');
 
-function mockSession(user: { id: string; email: string; name: string | null; role: string } | null) {
+function mockSession(
+  user: { id: string; email: string; name: string | null; role: string } | null,
+) {
   authMock.mockResolvedValue(user ? { user, expires: '2099-01-01T00:00:00.000Z' } : null);
 }
 
@@ -28,7 +30,10 @@ describe('requireUser', () => {
   });
 
   it('throws UNAUTHENTICATED when the session carries no role (malformed/invalidated token)', async () => {
-    authMock.mockResolvedValue({ user: { id: 'u1', email: 'a@example.com' }, expires: '2099-01-01T00:00:00.000Z' });
+    authMock.mockResolvedValue({
+      user: { id: 'u1', email: 'a@example.com' },
+      expires: '2099-01-01T00:00:00.000Z',
+    });
     await expect(requireUser()).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
   });
 });
@@ -46,7 +51,9 @@ describe('requirePermission', () => {
 
   it('rejects an unauthenticated caller with UNAUTHENTICATED, not FORBIDDEN', async () => {
     mockSession(null);
-    await expect(requirePermission('products.delete')).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    await expect(requirePermission('products.delete')).rejects.toMatchObject({
+      code: 'UNAUTHENTICATED',
+    });
   });
 
   it('users.manage is OWNER-only — a MANAGER is rejected', async () => {

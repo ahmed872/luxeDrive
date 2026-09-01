@@ -61,9 +61,11 @@ export async function setUserRole(id: string, role: Role): Promise<User> {
   return db.user.update({ where: { id }, data: { role } });
 }
 
-export type CredentialFailureReason = 'NOT_FOUND' | 'NO_PASSWORD' | 'WRONG_PASSWORD' | 'DISABLED' | 'NOT_ADMIN';
+export type CredentialFailureReason =
+  'NOT_FOUND' | 'NO_PASSWORD' | 'WRONG_PASSWORD' | 'DISABLED' | 'NOT_ADMIN';
 
-export type VerifyCredentialsResult = { ok: true; user: User } | { ok: false; reason: CredentialFailureReason };
+export type VerifyCredentialsResult =
+  { ok: true; user: User } | { ok: false; reason: CredentialFailureReason };
 
 /**
  * Verifies email + password for the admin login flow specifically: beyond a
@@ -77,7 +79,10 @@ export type VerifyCredentialsResult = { ok: true; user: User } | { ok: false; re
  * `auth.ts`) so a failed login never tells an attacker *which* fact was
  * wrong.
  */
-export async function verifyAdminCredentials(email: string, password: string): Promise<VerifyCredentialsResult> {
+export async function verifyAdminCredentials(
+  email: string,
+  password: string,
+): Promise<VerifyCredentialsResult> {
   const user = await getUserByEmail(email);
   if (!user) return { ok: false, reason: 'NOT_FOUND' };
   if (!user.passwordHash) return { ok: false, reason: 'NO_PASSWORD' };

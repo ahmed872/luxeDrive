@@ -32,7 +32,12 @@ const { requirePermission, requireUser } = await import('./authorize');
 
 function mockSession(role: Role | null) {
   authMock.mockResolvedValue(
-    role ? { user: { id: 'matrix-user', email: 'matrix@example.com', name: null, role }, expires: '2099-01-01T00:00:00.000Z' } : null,
+    role
+      ? {
+          user: { id: 'matrix-user', email: 'matrix@example.com', name: null, role },
+          expires: '2099-01-01T00:00:00.000Z',
+        }
+      : null,
   );
 }
 
@@ -43,7 +48,9 @@ beforeEach(async () => {
 describe('Security Matrix — 1. Authentication', () => {
   it('a correct password for an active admin authenticates', async () => {
     await createUser({ email: 'owner@example.com', password: 'correct-horse-9', role: 'OWNER' });
-    expect(await verifyAdminCredentials('owner@example.com', 'correct-horse-9')).toMatchObject({ ok: true });
+    expect(await verifyAdminCredentials('owner@example.com', 'correct-horse-9')).toMatchObject({
+      ok: true,
+    });
   });
 
   it('a wrong password does not authenticate', async () => {
@@ -62,7 +69,11 @@ describe('Security Matrix — 1. Authentication', () => {
   });
 
   it('a disabled admin does not authenticate, even with the correct password', async () => {
-    const user = await createUser({ email: 'owner@example.com', password: 'correct-horse-9', role: 'OWNER' });
+    const user = await createUser({
+      email: 'owner@example.com',
+      password: 'correct-horse-9',
+      role: 'OWNER',
+    });
     await setUserActive(user.id, false);
     expect(await verifyAdminCredentials('owner@example.com', 'correct-horse-9')).toEqual({
       ok: false,
@@ -91,7 +102,9 @@ describe('Security Matrix — 2. Authorization per role (requirePermission, the 
   it('an anonymous (unauthenticated) caller is rejected for every permission with UNAUTHENTICATED, never FORBIDDEN', async () => {
     mockSession(null);
     for (const permission of PERMISSIONS) {
-      await expect(requirePermission(permission)).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+      await expect(requirePermission(permission)).rejects.toMatchObject({
+        code: 'UNAUTHENTICATED',
+      });
     }
   });
 });
@@ -115,8 +128,16 @@ describe('Security Matrix — 3. Direct access to a protected action bypasses no
 
 describe('Security Matrix — 4. IDOR / session isolation', () => {
   it('two different users’ sessions never cross-validate — validating A’s token never resolves to B’s id', async () => {
-    const userA = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
-    const userB = await createUser({ email: 'b@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const userA = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
+    const userB = await createUser({
+      email: 'b@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const sessionA = await createDbSession({ userId: userA.id });
     const sessionB = await createDbSession({ userId: userB.id });
 
@@ -126,8 +147,16 @@ describe('Security Matrix — 4. IDOR / session isolation', () => {
   });
 
   it('revoking user A’s session never touches user B’s — resource (session) access is judged per-token, never by guessing structure', async () => {
-    const userA = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
-    const userB = await createUser({ email: 'b@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const userA = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
+    const userB = await createUser({
+      email: 'b@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const sessionA = await createDbSession({ userId: userA.id });
     const sessionB = await createDbSession({ userId: userB.id });
 
@@ -138,8 +167,16 @@ describe('Security Matrix — 4. IDOR / session isolation', () => {
   });
 
   it('force-revoking all of user A’s sessions never touches user B’s sessions', async () => {
-    const userA = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
-    const userB = await createUser({ email: 'b@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const userA = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
+    const userB = await createUser({
+      email: 'b@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const sessionA1 = await createDbSession({ userId: userA.id });
     const sessionA2 = await createDbSession({ userId: userA.id });
     const sessionB = await createDbSession({ userId: userB.id });
@@ -154,7 +191,11 @@ describe('Security Matrix — 4. IDOR / session isolation', () => {
 
 describe('Security Matrix — 5. Session validity / expiry / logout invalidation', () => {
   it('a freshly created session validates', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const session = await createDbSession({ userId: user.id });
     expect(await validateDbSession(session.token)).toEqual({ userId: user.id });
   });
@@ -164,7 +205,11 @@ describe('Security Matrix — 5. Session validity / expiry / logout invalidation
   });
 
   it('logout (revokeDbSession) invalidates the session immediately', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const session = await createDbSession({ userId: user.id });
     await revokeDbSession(session.token);
     expect(await validateDbSession(session.token)).toBeNull();
@@ -179,7 +224,11 @@ describe('Security Matrix — 6. Secrets', () => {
   });
 
   it('a session row stores only a hash of its token, never the raw token', async () => {
-    const user = await createUser({ email: 'a@example.com', password: 'correct-horse-9', role: 'STAFF' });
+    const user = await createUser({
+      email: 'a@example.com',
+      password: 'correct-horse-9',
+      role: 'STAFF',
+    });
     const { token } = await createDbSession({ userId: user.id });
     const [row] = await db.session.findMany({ where: { userId: user.id } });
     expect(row?.tokenHash).not.toBe(token);

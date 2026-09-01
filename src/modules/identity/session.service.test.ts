@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { db } from '@/modules/core';
 
-import { createDbSession, revokeAllUserSessions, revokeDbSession, validateDbSession } from './session.service';
+import {
+  createDbSession,
+  revokeAllUserSessions,
+  revokeDbSession,
+  validateDbSession,
+} from './session.service';
 import { createUser } from './user.service';
 import { resetIdentityTables } from './testing';
 
@@ -17,7 +22,11 @@ async function makeUser() {
 describe('createDbSession / validateDbSession', () => {
   it('creates a session row and validates its raw token', async () => {
     const user = await makeUser();
-    const { token } = await createDbSession({ userId: user.id, ip: '1.2.3.4', userAgent: 'vitest' });
+    const { token } = await createDbSession({
+      userId: user.id,
+      ip: '1.2.3.4',
+      userAgent: 'vitest',
+    });
     const validated = await validateDbSession(token);
     expect(validated).toEqual({ userId: user.id });
   });
@@ -40,7 +49,10 @@ describe('createDbSession / validateDbSession', () => {
     const { token } = await createDbSession({ userId: user.id });
     // Force the row into the past directly — createDbSession always issues
     // a future expiry, so this is the only way to exercise the expiry path.
-    await db.session.updateMany({ where: { userId: user.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    await db.session.updateMany({
+      where: { userId: user.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
     expect(await validateDbSession(token)).toBeNull();
   });
 });

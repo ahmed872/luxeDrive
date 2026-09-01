@@ -1,7 +1,20 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, Tag, Boxes, ClipboardList, Users2, Percent, FileText, BarChart3, Settings, ShieldCheck, type LucideIcon } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Package,
+  Tag,
+  Boxes,
+  ClipboardList,
+  Users2,
+  Percent,
+  FileText,
+  BarChart3,
+  Settings,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { Sidebar, type SidebarSection } from '@/components/admin/sidebar';
 import type { AdminNavSectionConfig } from '@/lib/admin/nav-config';

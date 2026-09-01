@@ -56,7 +56,9 @@ export function UserMenu({ name, email, roleLabel, labels }: UserMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex flex-col gap-1 px-2 py-1.5">
-          <span className="truncate text-sm font-medium text-(--color-text)">{name?.trim() || email}</span>
+          <span className="truncate text-sm font-medium text-(--color-text)">
+            {name?.trim() || email}
+          </span>
           <span className="truncate text-xs text-(--color-text-muted)">{email}</span>
           <Badge variant="brand" className="mt-1 w-fit">
             {roleLabel}

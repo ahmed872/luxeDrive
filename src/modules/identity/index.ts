@@ -30,7 +30,12 @@ export {
   type Permission,
 } from './permissions';
 
-export { hashPassword, verifyPassword, validatePasswordPolicy, passwordPolicySchema } from './password';
+export {
+  hashPassword,
+  verifyPassword,
+  validatePasswordPolicy,
+  passwordPolicySchema,
+} from './password';
 
 export {
   createUser,

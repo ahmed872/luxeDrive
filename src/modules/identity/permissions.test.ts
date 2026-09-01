@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { PERMISSIONS, ROLE_PERMISSIONS, isAdminRole, isPermission, roleHasPermission } from './permissions';
+import {
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  isAdminRole,
+  isPermission,
+  roleHasPermission,
+} from './permissions';
 
 describe('roleHasPermission', () => {
   it('OWNER (Super Admin) has every permission', () => {

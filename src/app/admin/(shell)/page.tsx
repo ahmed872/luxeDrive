@@ -30,7 +30,9 @@ export default async function AdminDashboardPage() {
   const locale = cookieLocale && isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
   const t = getAdminDictionary(locale);
 
-  const grantedPermissions = PERMISSIONS.filter((permission) => roleHasPermission(user.role, permission));
+  const grantedPermissions = PERMISSIONS.filter((permission) =>
+    roleHasPermission(user.role, permission),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,7 +59,9 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="flex flex-col gap-3 rounded-(--radius-container) border border-(--color-border) bg-(--color-surface) p-5">
-        <h2 className="text-h6 font-semibold text-(--color-text)">{t.dashboard.permissionsTitle}</h2>
+        <h2 className="text-h6 font-semibold text-(--color-text)">
+          {t.dashboard.permissionsTitle}
+        </h2>
         {grantedPermissions.length === 0 ? (
           <p className="text-small text-(--color-text-muted)">{t.dashboard.noPermissions}</p>
         ) : (

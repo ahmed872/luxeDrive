@@ -16,7 +16,9 @@ test.beforeAll(() => {
 });
 
 test.describe('admin login', () => {
-  test('shows no demo credentials or implementation hints anywhere on the page', async ({ page }) => {
+  test('shows no demo credentials or implementation hints anywhere on the page', async ({
+    page,
+  }) => {
     await page.goto('/admin/login');
     const body = await page.textContent('body');
     expect(body?.toLowerCase()).not.toContain('auth.js');
@@ -34,7 +36,9 @@ test.describe('admin login', () => {
     await expect(page).toHaveURL(/\/admin\/login$/);
   });
 
-  test('an unknown email shows the same generic error as a wrong password (no enumeration)', async ({ page }) => {
+  test('an unknown email shows the same generic error as a wrong password (no enumeration)', async ({
+    page,
+  }) => {
     await page.goto('/admin/login');
     await page.fill('input[name=email]', 'nobody-at-all@example.com');
     await page.fill('input[name=password]', 'whatever-password-1');
@@ -73,7 +77,9 @@ test.describe('admin login', () => {
     await expect(page.getByText(E2E_OWNER.email)).toBeVisible();
   });
 
-  test('an already-signed-in visitor hitting /admin/login is redirected straight to /admin', async ({ page }) => {
+  test('an already-signed-in visitor hitting /admin/login is redirected straight to /admin', async ({
+    page,
+  }) => {
     await page.goto('/admin/login');
     await page.fill('input[name=email]', E2E_OWNER.email);
     await page.fill('input[name=password]', E2E_OWNER.password);
@@ -86,7 +92,9 @@ test.describe('admin login', () => {
 });
 
 test.describe('admin logout', () => {
-  test('logout clears the session — /admin is protected again immediately afterward', async ({ page }) => {
+  test('logout clears the session — /admin is protected again immediately afterward', async ({
+    page,
+  }) => {
     await page.goto('/admin/login');
     await page.fill('input[name=email]', E2E_OWNER.email);
     await page.fill('input[name=password]', E2E_OWNER.password);
