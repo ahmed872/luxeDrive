@@ -23,7 +23,7 @@ export {
   findOrphanMediaAssets,
 } from './media-asset.service';
 
-export { getMediaPublicUrl } from './cdn';
+export { getMediaPublicUrl, toImageProp, type ResolvedMediaImage } from './cdn';
 
 export { getStorageProvider } from './provider-factory';
 

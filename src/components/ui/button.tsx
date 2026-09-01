@@ -71,8 +71,20 @@ export function Button({
       aria-busy={loading || undefined}
       {...props}
     >
-      {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-      {children}
+      {/* `Slot.Root` (asChild) requires exactly one element child — it merges
+          this component's props onto that one child rather than rendering
+          its own DOM node, so the loading-icon sibling only makes sense for
+          a real `<button>`. `asChild` + `loading` together isn't a
+          meaningful combination anyway: asChild hands rendering off
+          entirely to the child element. */}
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+          {children}
+        </>
+      )}
     </Component>
   );
 }

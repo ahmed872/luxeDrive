@@ -4,8 +4,11 @@
  * May depend on: core, media
  * Must not depend on: every domain module
  *
- * Boundary only in P01. Implementation lands in P12.
+ * P05: the read side — `getStoreSettings()`, the single source of truth for
+ * store name, currency, branding and SEO defaults across the storefront.
+ * Admin-authored writes (a settings form) land later; nothing here builds one.
+ *
  * Other modules import `@/modules/settings`, never a file inside it.
  */
 
-export {};
+export { getStoreSettings, type StoreSettingsView } from './store-settings.service';

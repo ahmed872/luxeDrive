@@ -29,7 +29,8 @@
     "postinstall": "prisma generate",
     "db:smoke": "node scripts/db-smoke.mjs",
     "db:migrate-cars": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-cars.mts",
-    "db:migrate-media": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-media.mts"
+    "db:migrate-media": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-media.mts",
+    "db:seed-storefront-demo": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-storefront-demo.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1123.0",

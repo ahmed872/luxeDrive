@@ -126,6 +126,22 @@ export async function getCategoryTree(rootId?: string): Promise<CategoryNode[]> 
   return [{ ...root, children: build(root.id) }];
 }
 
+/** `categoryId` plus every descendant's id — the scope a category listing
+ * page shows products for, since browsing "Cars" should include "SUVs"
+ * under it, not just products tagged directly on "Cars" itself. */
+export async function getDescendantCategoryIds(categoryId: string): Promise<string[]> {
+  const [root] = await getCategoryTree(categoryId);
+  if (!root) return [categoryId];
+
+  const ids: string[] = [];
+  function collect(node: CategoryNode): void {
+    ids.push(node.id);
+    for (const child of node.children) collect(child);
+  }
+  collect(root);
+  return ids;
+}
+
 async function getCategoryOrThrow(id: string): Promise<Category> {
   const category = await getCategory(id);
   if (!category) throw new AppError('NOT_FOUND', { details: { entity: 'Category', id } });

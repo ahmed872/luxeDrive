@@ -232,7 +232,10 @@
   --color-warning-surface: oklch(0.3 0.05 80);
   --color-warning-foreground: oklch(0.16 0.02 80);
 
-  --color-error: oklch(0.68 0.18 25);
+  /* 0.68 measured 4.46:1 on --color-error-surface at small badge text
+     (axe, P05) — just under AA's 4.5:1. Bumped to 0.71 for real margin,
+     not a bare pass. */
+  --color-error: oklch(0.71 0.17 25);
   --color-error-hover: oklch(0.73 0.17 25);
   --color-error-surface: oklch(0.3 0.06 25);
   --color-error-foreground: oklch(0.15 0.02 25);
@@ -305,7 +308,9 @@
     --color-warning-surface: oklch(0.3 0.05 80);
     --color-warning-foreground: oklch(0.16 0.02 80);
 
-    --color-error: oklch(0.68 0.18 25);
+    /* Kept identical to the [data-theme='dark'] block above — see its
+       comment (P05 axe fix). */
+    --color-error: oklch(0.71 0.17 25);
     --color-error-hover: oklch(0.73 0.17 25);
     --color-error-surface: oklch(0.3 0.06 25);
     --color-error-foreground: oklch(0.15 0.02 25);

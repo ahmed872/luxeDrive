@@ -7,6 +7,10 @@
  * P03: full domain implementation. Product is generic — nothing here or in
  * the schema is specific to any one kind of product; a category's
  * AttributeDefinition rows are what make "cars" different from "shoes".
+ * P05 adds the read side the storefront needs: `listProducts` (the one
+ * query every browse surface goes through — category pages, and, wrapped by
+ * `@/modules/search`, the search page), `getProductDetailBySlug`, and the
+ * pure display-pricing/stock-status helpers.
  *
  * Other modules import `@/modules/catalog`, never a file inside it.
  */
@@ -19,6 +23,7 @@ export {
   getCategoryBySlug,
   getAncestorChain,
   getCategoryTree,
+  getDescendantCategoryIds,
   type CategoryNode,
 } from './category.service';
 
@@ -49,6 +54,31 @@ export {
   reorderProductImages,
   listProductImages,
 } from './product-image.service';
+
+export {
+  listProducts,
+  getFilterableAttributes,
+  getRelatedProducts,
+  type ProductListingQuery,
+  type ProductListingSort,
+  type ProductListingItem,
+  type ProductListingResult,
+  type FilterableAttribute,
+} from './product-listing.service';
+
+export {
+  getProductDetailBySlug,
+  getProductReviews,
+  type ProductDetail,
+  type ProductDetailVariant,
+  type ProductDetailOption,
+  type ProductDetailAttribute,
+  type ProductReview,
+} from './product-detail.service';
+
+export { resolveEffectivePrice, resolveListingPrice, type EffectivePrice } from './variant-pricing';
+
+export { resolveVariantStockStatus, type StockStatus } from './stock-status';
 
 export {
   cartesianProduct,
