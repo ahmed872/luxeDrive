@@ -1,14 +1,14 @@
 import type { NextConfig } from 'next';
 
 /**
- * `next/image` refuses to optimize an external host it hasn't been told
- * about — every *external* (cross-origin) domain a real `<Image>` `src` can
- * point to has to be listed here. Same-origin media (the local storage
- * provider's `${NEXT_PUBLIC_SITE_URL}/api/media/local-upload/...` URLs)
- * needs nothing added — remotePatterns only governs other origins. Read
- * directly from `process.env` (not the validated `serverEnv()`/
- * `clientEnv()` parsers) because this file runs before the app's module
- * graph exists; it stays this minimal on purpose.
+ * `next/image` refuses to optimize any host it hasn't been told about —
+ * every absolute-URL origin a real `<Image>` `src` can point to has to be
+ * listed here. That includes the app's *own* origin: `remotePatterns` is
+ * matched against the URL, not against "is this cross-origin", so an
+ * absolute `${NEXT_PUBLIC_SITE_URL}/...` src is refused exactly like a
+ * third-party one would be. Read directly from `process.env` (not the
+ * validated `serverEnv()`/`clientEnv()` parsers) because this file runs
+ * before the app's module graph exists; it stays this minimal on purpose.
  *
  * `images.unsplash.com` is P03/P04's known, documented case: the 15
  * migrated-catalog MediaAssets that P04's migration script couldn't
@@ -16,18 +16,23 @@ import type { NextConfig } from 'next';
  * rows whose `storageKey` is the original Unsplash URL — see
  * `media/cdn.ts`. `MEDIA_PUBLIC_BASE_URL` is the real production case: a
  * CDN domain in front of S3, genuinely a different origin from the app
- * itself. Nothing else should add a host here by convention.
+ * itself. `NEXT_PUBLIC_SITE_URL` is where the local storage provider
+ * serves uploads from (`/api/media/local-upload/...`) when no CDN base is
+ * configured — every admin-uploaded image goes through it. Nothing else
+ * should add a host here by convention.
  */
 function remotePatterns(): NonNullable<NonNullable<NextConfig['images']>['remotePatterns']> {
   const patterns: NonNullable<NonNullable<NextConfig['images']>['remotePatterns']> = [
     { protocol: 'https', hostname: 'images.unsplash.com' },
   ];
-  if (process.env.MEDIA_PUBLIC_BASE_URL) {
+  for (const base of [process.env.MEDIA_PUBLIC_BASE_URL, process.env.NEXT_PUBLIC_SITE_URL]) {
+    if (!base) continue;
     try {
-      const url = new URL(process.env.MEDIA_PUBLIC_BASE_URL);
+      const url = new URL(base);
       patterns.push({
         protocol: url.protocol.replace(':', '') as 'http' | 'https',
         hostname: url.hostname,
+        ...(url.port ? { port: url.port } : {}),
       });
     } catch {
       // Not a valid absolute URL — nothing to add.
