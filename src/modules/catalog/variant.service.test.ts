@@ -151,8 +151,10 @@ describe('generateMissingVariants', () => {
     const [black] = await generateMissingVariants(product.id);
     expect(black).toBeDefined();
 
-    // Admin edits the Black variant's price and stock.
-    await updateVariant(black!.id, { priceMinor: 5000, stockQuantity: 20 });
+    // Admin edits the Black variant's price. Stock is deliberately not
+    // editable here as of P08 — it moves only through
+    // `inventory.adjustStock`, so this asserts the price survives instead.
+    await updateVariant(black!.id, { priceMinor: 5000 });
 
     // A new color value is added.
     await addOptionValues(color.id, [{ valueAr: 'أبيض', valueEn: 'White' }]);
@@ -164,7 +166,6 @@ describe('generateMissingVariants', () => {
     expect(all).toHaveLength(3);
     const editedBlack = all.find((v) => v.id === black!.id)!;
     expect(editedBlack.priceMinor).toBe(5000); // untouched by the second generation
-    expect(editedBlack.stockQuantity).toBe(20);
   });
 
   it('handles a large matrix (3 colors x 5 sizes x 2 materials = 30 variants) with unique SKUs', async () => {
@@ -189,6 +190,99 @@ describe('generateMissingVariants', () => {
     const created = await generateMissingVariants(product.id);
     expect(created).toHaveLength(30);
     expect(new Set(created.map((v) => v.sku)).size).toBe(30);
+  });
+});
+
+describe('updateVariant — stock is not writable here (P08)', () => {
+  it('refuses a stock field instead of quietly ignoring it', async () => {
+    const category = await shoesFixture();
+    const product = await simpleProduct(category.id);
+    const [variant] = await listVariants(product.id);
+
+    // Rejected rather than stripped: a caller that thinks it just set the
+    // stock and gets a success back would be badly misled. Stock moves only
+    // through `inventory.adjustStock`, which records why.
+    await expect(
+      updateVariant(variant!.id, { stockQuantity: 99 } as never),
+    ).rejects.toThrow();
+    await expect(
+      updateVariant(variant!.id, { trackInventory: false } as never),
+    ).rejects.toThrow();
+    await expect(
+      updateVariant(variant!.id, { lowStockThreshold: 3 } as never),
+    ).rejects.toThrow();
+
+    const [after] = await listVariants(product.id);
+    expect(after!.stockQuantity).toBe(variant!.stockQuantity);
+    expect(after!.trackInventory).toBe(true);
+  });
+});
+
+describe('updateVariant — pricing invariants', () => {
+  it('refuses a compare-at price that is not above the real price', async () => {
+    const category = await shoesFixture();
+    const product = await simpleProduct(category.id);
+    const [variant] = await listVariants(product.id);
+
+    await expect(
+      updateVariant(variant!.id, { priceMinor: 10000, compareAtMinor: 10000 }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: { reasonCode: 'compare_at_not_above_price' },
+    });
+  });
+
+  it('catches a price rise that invalidates an existing compare-at price', async () => {
+    const category = await shoesFixture();
+    const product = await simpleProduct(category.id);
+    const [variant] = await listVariants(product.id);
+    await updateVariant(variant!.id, { priceMinor: 10000, compareAtMinor: 15000 });
+
+    // The call changes only the price, but the stored compare-at is now
+    // below it — the invariant is checked against the resulting row.
+    await expect(updateVariant(variant!.id, { priceMinor: 20000 })).rejects.toMatchObject({
+      details: { reasonCode: 'compare_at_not_above_price' },
+    });
+  });
+
+  it('refuses a negative or fractional price', async () => {
+    const category = await shoesFixture();
+    const product = await simpleProduct(category.id);
+    const [variant] = await listVariants(product.id);
+
+    await expect(updateVariant(variant!.id, { priceMinor: -1 })).rejects.toThrow();
+    await expect(updateVariant(variant!.id, { priceMinor: 10.5 })).rejects.toThrow();
+  });
+
+  it('refuses a sale price at or above the regular price, and an inverted window', async () => {
+    const category = await shoesFixture();
+    const product = await simpleProduct(category.id);
+    const [variant] = await listVariants(product.id);
+    await updateVariant(variant!.id, { priceMinor: 10000 });
+
+    await expect(updateVariant(variant!.id, { salePriceMinor: 10000 })).rejects.toMatchObject({
+      details: { reasonCode: 'sale_not_below_price' },
+    });
+    await expect(
+      updateVariant(variant!.id, {
+        saleStartsAt: new Date('2026-02-01'),
+        saleEndsAt: new Date('2026-01-01'),
+      }),
+    ).rejects.toMatchObject({ details: { reasonCode: 'sale_window_inverted' } });
+  });
+
+  it('accepts a genuine discount', async () => {
+    const category = await shoesFixture();
+    const product = await simpleProduct(category.id);
+    const [variant] = await listVariants(product.id);
+
+    const updated = await updateVariant(variant!.id, {
+      priceMinor: 10000,
+      compareAtMinor: 12000,
+      salePriceMinor: 8000,
+    });
+    expect(updated.compareAtMinor).toBe(12000);
+    expect(updated.salePriceMinor).toBe(8000);
   });
 });
 

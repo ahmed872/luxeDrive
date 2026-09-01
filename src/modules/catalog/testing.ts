@@ -9,6 +9,10 @@ import { db } from '@/modules/core';
  * which is exactly what the `**\/*.test.ts` ESLint override exists for.
  */
 export async function resetCatalogTables(): Promise<void> {
+  // `InventoryAdjustment.variant` is `onDelete: Restrict` (P08): stock
+  // history pins the variant it describes, so it has to go first or the
+  // variant delete below is refused.
+  await db.inventoryAdjustment.deleteMany();
   await db.variantOptionValue.deleteMany();
   await db.productImage.deleteMany();
   await db.variant.deleteMany();

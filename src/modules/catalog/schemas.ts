@@ -169,13 +169,68 @@ const skuSchema = z
   .max(64)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, 'SKU must be alphanumeric (., _, - allowed), no spaces');
 
+/**
+ * The pricing invariants every variant must satisfy, wherever it is written
+ * from — creation, a single edit, or a bulk update (P08 §7). Enforced here,
+ * in the schema the services parse with, so no caller can reach the
+ * database around them and an HTML `min=0` is never the only thing standing
+ * between the catalog and a negative price.
+ *
+ * Amounts stay integer minor units throughout (ADR-006/ADR-022); a
+ * fractional halala is not a price, it is a rounding bug.
+ */
+export const priceMinorSchema = z
+  .number()
+  .int('Prices are whole minor units — no fractions of a halala')
+  .nonnegative('A price cannot be negative')
+  // Well past any real product, and below Number.MAX_SAFE_INTEGER: a value
+  // this large is a typo or an overflow, not a price.
+  .max(1_000_000_000, 'That price is implausibly large');
+
+export function assertPricingInvariants(value: {
+  priceMinor?: number;
+  compareAtMinor?: number | null;
+  salePriceMinor?: number | null;
+  saleStartsAt?: Date | null;
+  saleEndsAt?: Date | null;
+}): { ok: true } | { ok: false; reasonCode: string } {
+  const { priceMinor, compareAtMinor, salePriceMinor, saleStartsAt, saleEndsAt } = value;
+
+  // A compare-at price is the struck-through "was" figure. Equal to or below
+  // the real price it advertises no saving at all, which reads to a customer
+  // as a fake discount.
+  if (
+    priceMinor !== undefined &&
+    compareAtMinor !== undefined &&
+    compareAtMinor !== null &&
+    compareAtMinor <= priceMinor
+  ) {
+    return { ok: false, reasonCode: 'compare_at_not_above_price' };
+  }
+
+  if (
+    priceMinor !== undefined &&
+    salePriceMinor !== undefined &&
+    salePriceMinor !== null &&
+    salePriceMinor >= priceMinor
+  ) {
+    return { ok: false, reasonCode: 'sale_not_below_price' };
+  }
+
+  if (saleStartsAt && saleEndsAt && saleEndsAt <= saleStartsAt) {
+    return { ok: false, reasonCode: 'sale_window_inverted' };
+  }
+
+  return { ok: true };
+}
+
 export const variantInputSchema = z.object({
   sku: skuSchema,
   labelAr: z.string().min(1).max(255).nullable().optional(),
   labelEn: z.string().min(1).max(255).nullable().optional(),
-  priceMinor: z.number().int().nonnegative(),
-  compareAtMinor: z.number().int().nonnegative().nullable().optional(),
-  salePriceMinor: z.number().int().nonnegative().nullable().optional(),
+  priceMinor: priceMinorSchema,
+  compareAtMinor: priceMinorSchema.nullable().optional(),
+  salePriceMinor: priceMinorSchema.nullable().optional(),
   saleStartsAt: z.date().nullable().optional(),
   saleEndsAt: z.date().nullable().optional(),
   stockQuantity: z.number().int().nonnegative().optional(),

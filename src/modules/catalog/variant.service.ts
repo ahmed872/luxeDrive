@@ -5,6 +5,7 @@ import { db, AppError } from '@/modules/core';
 
 import { cartesianProduct, generateSku } from './variant-combinations';
 import {
+  assertPricingInvariants,
   optionValueInputSchema,
   productOptionInputSchema,
   variantInputSchema,
@@ -216,6 +217,16 @@ async function uniqueSku(base: string): Promise<string> {
   return candidate;
 }
 
+/**
+ * What a catalog edit may change about a variant.
+ *
+ * Deliberately without `stockQuantity`, `trackInventory` and
+ * `lowStockThreshold`: stock is `inventory`'s (P08 §2). Letting this
+ * function write the counter would give the application a second, unaudited
+ * way to change stock — the exact thing `inventory.adjustStock` exists to
+ * prevent — and `catalog` cannot call `inventory` (the dependency runs the
+ * other way), so the field is simply not writable from here.
+ */
 export interface UpdateVariantInput {
   sku?: string;
   labelAr?: string | null;
@@ -225,17 +236,29 @@ export interface UpdateVariantInput {
   salePriceMinor?: number | null;
   saleStartsAt?: Date | null;
   saleEndsAt?: Date | null;
-  stockQuantity?: number;
-  lowStockThreshold?: number;
-  trackInventory?: boolean;
   weightGrams?: number | null;
   position?: number;
 }
 
+const updateVariantSchema = variantInputSchema
+  .omit({
+    optionValues: true,
+    stockQuantity: true,
+    trackInventory: true,
+    lowStockThreshold: true,
+  })
+  .partial()
+  .strict();
+
 /**
  * Edits one variant's own fields — never its option combination (changing
  * which combination a variant represents isn't an edit, it's a different
- * variant; delete and generate the right one instead).
+ * variant; delete and generate the right one instead), and never its stock.
+ *
+ * Pricing invariants are checked against the variant's *resulting* state,
+ * not just the fields in this call: raising the price alone can invalidate a
+ * compare-at figure that was set months ago, and the check has to catch
+ * that.
  *
  * `expectedUpdatedAt`, when passed, is the optimistic-concurrency check: if
  * someone else saved a change to this exact variant since the caller last
@@ -247,7 +270,7 @@ export async function updateVariant(
   input: UpdateVariantInput,
   expectedUpdatedAt?: Date,
 ): Promise<Variant> {
-  const parsed = variantInputSchema.omit({ optionValues: true }).partial().parse(input);
+  const parsed = updateVariantSchema.parse(input);
   const existing = await getVariantOrThrow(id);
 
   if (expectedUpdatedAt && existing.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
@@ -256,6 +279,14 @@ export async function updateVariant(
     // says exactly the right thing for a stale-version conflict.
     throw new AppError('CONFLICT', {
       internalMessage: 'Stale expectedUpdatedAt on variant update',
+    });
+  }
+
+  const invariants = assertPricingInvariants({ ...existing, ...parsed });
+  if (!invariants.ok) {
+    throw new AppError('VALIDATION_FAILED', {
+      internalMessage: `Pricing invariant violated: ${invariants.reasonCode}`,
+      details: { reasonCode: invariants.reasonCode },
     });
   }
 

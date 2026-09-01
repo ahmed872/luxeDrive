@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Plus, Trash2, X, Wand2 } from 'lucide-react';
@@ -9,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import {
   Dialog,
@@ -80,8 +80,10 @@ export interface VariantBuilderLabels {
   colPrice: string;
   colCompareAt: string;
   colStock: string;
-  colTrack: string;
   colWeight: string;
+  stockReadOnlyHelp: string;
+  manageStock: string;
+  notTracked: string;
   defaultVariant: string;
   saveVariant: string;
   deleteVariant: string;
@@ -213,6 +215,18 @@ export function VariantBuilder({
           </p>
         </div>
 
+        {variants.length > 0 ? (
+          <p className="text-small text-(--color-text-muted)">
+            {labels.stockReadOnlyHelp}{' '}
+            <Link
+              href={`/admin/inventory?productId=${productId}`}
+              className="text-(--color-primary) underline underline-offset-2"
+            >
+              {labels.manageStock}
+            </Link>
+          </p>
+        ) : null}
+
         {variants.length === 0 ? (
           <p className="text-small text-(--color-text-muted)">{labels.variantsEmpty}</p>
         ) : (
@@ -225,7 +239,6 @@ export function VariantBuilder({
                   <th className="p-3 text-start font-medium">{labels.colPrice}</th>
                   <th className="p-3 text-start font-medium">{labels.colCompareAt}</th>
                   <th className="p-3 text-start font-medium">{labels.colStock}</th>
-                  <th className="p-3 text-start font-medium">{labels.colTrack}</th>
                   <th className="p-3 text-start font-medium">{labels.colWeight}</th>
                   <th className="p-3 text-end font-medium">{labels.saveVariant}</th>
                 </tr>
@@ -395,8 +408,6 @@ function VariantEditorRow({
   const [compareAt, setCompareAt] = useState(
     variant.compareAtMinor === null ? '' : String(fromMinor(variant.compareAtMinor)),
   );
-  const [stock, setStock] = useState(String(variant.stockQuantity));
-  const [track, setTrack] = useState(variant.trackInventory);
   const [weight, setWeight] = useState(
     variant.weightGrams === null ? '' : String(variant.weightGrams),
   );
@@ -411,8 +422,6 @@ function VariantEditorRow({
             sku,
             priceMinor: toMinor(Number(price) || 0),
             compareAtMinor: compareAt === '' ? null : toMinor(Number(compareAt)),
-            stockQuantity: Number(stock) || 0,
-            trackInventory: track,
             weightGrams: weight === '' ? null : Number(weight),
           },
           variant.updatedAt,
@@ -458,22 +467,17 @@ function VariantEditorRow({
           className="w-28 tabular-nums"
         />
       </td>
-      <td className="p-3">
-        <Input
-          type="number"
-          min={0}
-          value={stock}
-          onChange={(event) => setStock(event.target.value)}
-          aria-label={`${labels.colStock}: ${label}`}
-          className="w-24 tabular-nums"
-        />
-      </td>
-      <td className="p-3">
-        <Switch
-          checked={track}
-          onCheckedChange={setTrack}
-          aria-label={`${labels.colTrack}: ${label}`}
-        />
+      {/* Read-only on purpose: stock only ever moves through the inventory
+          service, which records why and by whom (P08 §2). Editing it in a
+          form that also saves a SKU would be a silent, unexplained write. */}
+      <td className="p-3 whitespace-nowrap">
+        {variant.trackInventory ? (
+          <span className="tabular-nums" dir="ltr">
+            {variant.stockQuantity}
+          </span>
+        ) : (
+          <span className="text-(--color-text-muted)">{labels.notTracked}</span>
+        )}
       </td>
       <td className="p-3">
         <Input

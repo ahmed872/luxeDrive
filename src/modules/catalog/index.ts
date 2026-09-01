@@ -120,6 +120,19 @@ export {
 
 export { resolveEffectivePrice, resolveListingPrice, type EffectivePrice } from './variant-pricing';
 
+export {
+  previewBulkPrice,
+  applyBulkPrice,
+  productsForVariants,
+  bulkPriceInputSchema,
+  bulkPriceOperationSchema,
+  type BulkPriceInput,
+  type BulkPriceOperation,
+  type BulkPriceRow,
+  type BulkPricePreview,
+  type BulkPriceResult,
+} from './bulk-pricing.service';
+
 export { resolveVariantStockStatus, type StockStatus } from './stock-status';
 
 export {
@@ -146,6 +159,8 @@ export {
   optionValueInputSchema,
   variantInputSchema,
   createProductInputSchema,
+  priceMinorSchema,
+  assertPricingInvariants,
   type CategoryInput,
   type CategoryUpdateInput,
   type BrandInput,
