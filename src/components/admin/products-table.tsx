@@ -213,8 +213,14 @@ export function ProductsTable({
       key: 'updatedAt',
       header: labels.updatedAt,
       align: 'end',
+      // `dir="ltr"`: the Arabic date format carries RTL marks between its
+      // parts (01<RLM>/09<RLM>/2026), which reorder into an unreadable
+      // "012026/09/" inside an RTL cell. A numeric date is one LTR run in
+      // both locales — the same reasoning ADR-023 applies to digits.
       cell: (row) => (
-        <span className="text-(--color-text-muted) tabular-nums">{row.updatedAt}</span>
+        <span dir="ltr" className="inline-block text-(--color-text-muted) tabular-nums">
+          {row.updatedAt}
+        </span>
       ),
     },
   ];

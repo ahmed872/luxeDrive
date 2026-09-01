@@ -20,7 +20,8 @@ loadDotenv({ path: '.env', quiet: true });
 const { createUser, getUserByEmail } = await import('../src/modules/identity/user.service.js');
 const { hashPassword } = await import('../src/modules/identity/password.js');
 const { db } = await import('../src/modules/core/index.js');
-const { E2E_OWNER, E2E_STAFF, E2E_DISABLED } = await import('../e2e/fixtures/admin-credentials.js');
+const { E2E_OWNER, E2E_STAFF, E2E_DISABLED, E2E_ACCEPTANCE_OWNER } =
+  await import('../e2e/fixtures/admin-credentials.js');
 
 async function upsertAdmin(
   email: string,
@@ -46,6 +47,7 @@ async function upsertAdmin(
 await upsertAdmin(E2E_OWNER.email, E2E_OWNER.password, 'OWNER', true);
 await upsertAdmin(E2E_STAFF.email, E2E_STAFF.password, 'STAFF', true);
 await upsertAdmin(E2E_DISABLED.email, E2E_DISABLED.password, 'OWNER', false);
+await upsertAdmin(E2E_ACCEPTANCE_OWNER.email, E2E_ACCEPTANCE_OWNER.password, 'OWNER', true);
 
-console.log('✓ e2e admin fixtures ready: e2e-owner, e2e-staff, e2e-disabled');
+console.log('✓ e2e admin fixtures ready: e2e-owner, e2e-staff, e2e-disabled, e2e-acceptance');
 await db.$disconnect();

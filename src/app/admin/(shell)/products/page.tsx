@@ -16,6 +16,7 @@ import { formatMoney } from '@/modules/core';
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, isLocale, type Locale } from '@/lib/i18n/locales';
 import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
 import { requireAdminPermission } from '@/lib/admin/require-admin';
+import { formatAdminDate } from '@/lib/admin/format-admin-date';
 import { roleHasPermission } from '@/modules/identity';
 import { AdminBreadcrumbs } from '@/components/admin/admin-breadcrumbs';
 import { PageHeader } from '@/components/admin/page-header';
@@ -105,8 +106,6 @@ export default async function AdminProductsPage({
     listBrands(),
   ]);
 
-  const dateFormatter = new Intl.DateTimeFormat(`${locale}-u-nu-latn`, { dateStyle: 'medium' });
-
   const rows: ProductTableRow[] = result.items.map((item) => ({
     id: item.id,
     name: locale === 'ar' ? item.nameAr : item.nameEn,
@@ -125,7 +124,7 @@ export default async function AdminProductsPage({
         : null,
     stockStatus: item.stockStatus,
     status: item.status,
-    updatedAt: dateFormatter.format(item.updatedAt),
+    updatedAt: formatAdminDate(item.updatedAt, locale),
   }));
 
   return (

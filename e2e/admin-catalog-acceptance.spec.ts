@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { E2E_OWNER } from './fixtures/admin-credentials';
+import { E2E_ACCEPTANCE_OWNER } from './fixtures/admin-credentials';
 
 /**
  * P07 §31 — the critical acceptance test, run exactly as the spec words it:
@@ -38,8 +38,8 @@ test.beforeAll(() => {
 
 async function signInAsOwner(page: Page): Promise<void> {
   await page.goto('/admin/login');
-  await page.fill('input[name=email]', E2E_OWNER.email);
-  await page.fill('input[name=password]', E2E_OWNER.password);
+  await page.fill('input[name=email]', E2E_ACCEPTANCE_OWNER.email);
+  await page.fill('input[name=password]', E2E_ACCEPTANCE_OWNER.password);
   await page.click('button[type=submit]');
   await page.waitForURL('**/admin');
   // English for the rest of the journey — the Arabic side of the same
