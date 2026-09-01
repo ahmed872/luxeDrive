@@ -300,6 +300,34 @@ export async function listVariants(productId: string): Promise<Variant[]> {
   return db.variant.findMany({ where: { productId }, orderBy: { position: 'asc' } });
 }
 
+export interface VariantWithOptionValues extends Variant {
+  /** In option order (`Color` before `Size`, as the product defines them),
+   * so a caller composing a label gets "Black / 41", never "41 / Black". */
+  optionValues: (OptionValue & { option: ProductOption })[];
+}
+
+/** `listVariants` plus each variant's option values and the option each one
+ * belongs to — what an admin variant table needs to name its rows, and the
+ * one join a caller would otherwise have to do itself. */
+export async function listVariantsWithOptionValues(
+  productId: string,
+): Promise<VariantWithOptionValues[]> {
+  const variants = await db.variant.findMany({
+    where: { productId },
+    orderBy: { position: 'asc' },
+    include: {
+      optionValues: { include: { optionValue: { include: { option: true } } } },
+    },
+  });
+
+  return variants.map((variant) => ({
+    ...variant,
+    optionValues: variant.optionValues
+      .map((link) => link.optionValue)
+      .sort((a, b) => a.option.position - b.option.position || a.position - b.position),
+  }));
+}
+
 export async function getVariant(id: string): Promise<Variant | null> {
   return db.variant.findUnique({ where: { id } });
 }

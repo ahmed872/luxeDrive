@@ -80,9 +80,11 @@ export {
   updateVariant,
   deleteVariant,
   listVariants,
+  listVariantsWithOptionValues,
   getVariant,
   type ProductOptionWithValues,
   type UpdateVariantInput,
+  type VariantWithOptionValues,
 } from './variant.service';
 
 export {

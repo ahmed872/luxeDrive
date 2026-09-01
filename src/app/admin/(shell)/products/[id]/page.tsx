@@ -8,6 +8,8 @@ import {
   listBrands,
   getEffectiveAttributeDefinitions,
   listProductImages,
+  listProductOptions,
+  listVariantsWithOptionValues,
   type CategoryNode,
 } from '@/modules/catalog';
 import { getMediaAsset, getMediaPublicUrl } from '@/modules/media';
@@ -22,6 +24,11 @@ import {
   ProductImagesManager,
   type ProductImageRow,
 } from '@/components/admin/product-images-manager';
+import {
+  VariantBuilder,
+  type ProductOptionRow,
+  type VariantRow,
+} from '@/components/admin/variant-builder';
 import type { AttributeFieldDefinition } from '@/lib/admin/product-actions';
 
 export const metadata: Metadata = { title: 'Edit product' };
@@ -43,11 +50,13 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const product = await getProduct(id);
   if (!product || product.deletedAt) notFound();
 
-  const [tree, brands, definitions, images] = await Promise.all([
+  const [tree, brands, definitions, images, options, variants] = await Promise.all([
     getCategoryTree(),
     listBrands(),
     getEffectiveAttributeDefinitions(product.categoryId),
     listProductImages(product.id),
+    listProductOptions(product.id),
+    listVariantsWithOptionValues(product.id),
   ]);
 
   const imageRows: ProductImageRow[] = [];
@@ -68,6 +77,33 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const locale = cookieLocale && isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
   const t = getAdminDictionary(locale);
   const productLabel = locale === 'ar' ? product.nameAr : product.nameEn;
+
+  const optionRows: ProductOptionRow[] = options.map((option) => ({
+    id: option.id,
+    nameAr: option.nameAr,
+    nameEn: option.nameEn,
+    values: option.values.map((value) => ({
+      id: value.id,
+      valueAr: value.valueAr,
+      valueEn: value.valueEn,
+    })),
+  }));
+
+  // The row label is composed here, in the locale the admin is reading —
+  // the client gets "Black / 41", not a join to resolve.
+  const variantRows: VariantRow[] = variants.map((variant) => ({
+    id: variant.id,
+    sku: variant.sku,
+    label: variant.optionValues
+      .map((value) => (locale === 'ar' ? value.valueAr : value.valueEn))
+      .join(' / '),
+    priceMinor: variant.priceMinor,
+    compareAtMinor: variant.compareAtMinor,
+    stockQuantity: variant.stockQuantity,
+    trackInventory: variant.trackInventory,
+    weightGrams: variant.weightGrams,
+    updatedAt: variant.updatedAt.toISOString(),
+  }));
 
   const initialAttributeDefinitions: AttributeFieldDefinition[] = definitions.map((definition) => ({
     id: definition.id,
@@ -158,7 +194,55 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
       />
 
       <div className="border-t border-(--color-border)">
+        <FormSection title={t.variants.title} description={t.variants.description}>
+          <VariantBuilder
+            productId={product.id}
+            locale={locale}
+            options={optionRows}
+            variants={variantRows}
+            labels={{
+              optionsTitle: t.variants.optionsTitle,
+              newOption: t.variants.newOption,
+              optionNameAr: t.variants.optionNameAr,
+              optionNameEn: t.variants.optionNameEn,
+              optionValues: t.variants.optionValues,
+              optionValuesHelp: t.variants.optionValuesHelp,
+              addValue: t.variants.addValue,
+              deleteOption: t.variants.deleteOption,
+              deleteValue: t.variants.deleteValue,
+              optionsEmpty: t.variants.optionsEmpty,
+              generate: t.variants.generate,
+              generating: t.variants.generating,
+              generatedCount: t.variants.generatedCount,
+              generatedNone: t.variants.generatedNone,
+              variantsTitle: t.variants.variantsTitle,
+              variantsCount: t.variants.variantsCount,
+              colVariant: t.variants.colVariant,
+              colSku: t.variants.colSku,
+              colPrice: t.variants.colPrice,
+              colCompareAt: t.variants.colCompareAt,
+              colStock: t.variants.colStock,
+              colTrack: t.variants.colTrack,
+              colWeight: t.variants.colWeight,
+              defaultVariant: t.variants.defaultVariant,
+              saveVariant: t.variants.saveVariant,
+              deleteVariant: t.variants.deleteVariant,
+              deleteVariantConfirm: t.variants.deleteVariantConfirm,
+              variantSaved: t.variants.variantSaved,
+              variantsEmpty: t.variants.variantsEmpty,
+              confirmDeleteTitle: t.common.confirmDeleteTitle,
+              cancel: t.common.cancel,
+              confirm: t.common.confirm,
+              save: t.common.save,
+              saving: t.common.saving,
+              deletedSuccessfully: t.common.deletedSuccessfully,
+              requiredField: t.common.requiredField,
+            }}
+          />
+        </FormSection>
+
         <FormSection
+          className="border-t border-(--color-border)"
           title={t.products.sectionMedia}
           description={t.products.sectionMediaDescription}
         >
