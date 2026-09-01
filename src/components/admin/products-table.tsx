@@ -183,8 +183,11 @@ export function ProductsTable({
         row.price ? (
           <span className="inline-flex items-center gap-2 tabular-nums">
             <span>{row.price}</span>
+            {/* `--color-text-muted`, not `--color-text-subtle`: the subtle
+                token is ≈3.1:1 on this background — fine for a placeholder
+                or an icon, not for a price an admin has to read. */}
             {row.compareAtPrice ? (
-              <s className="text-(--color-text-subtle)">{row.compareAtPrice}</s>
+              <s className="text-(--color-text-muted)">{row.compareAtPrice}</s>
             ) : null}
           </span>
         ) : (

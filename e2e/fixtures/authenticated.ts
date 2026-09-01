@@ -17,11 +17,29 @@ type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
  * bug, but would make an unrelated axe check spuriously trip the rate limit
  * it isn't testing.
  */
+/**
+ * Chromium makes its own requests to Google endpoints (variations, autofill,
+ * component updates) that no test needs. Behind an egress proxy that holds
+ * such connections open rather than refusing them, they never settle, the
+ * page's `load` event never fires, and every navigation stalls until the
+ * test times out — a browser problem that reads exactly like a slow
+ * application. Nothing under test is off-origin, so anything that isn't the
+ * app under test is refused outright.
+ */
+async function blockOffOriginRequests(context: BrowserContext): Promise<void> {
+  await context.route('**/*', (route) => {
+    const { hostname } = new URL(route.request().url());
+    if (hostname === '127.0.0.1' || hostname === 'localhost') return route.continue();
+    return route.abort();
+  });
+}
+
 async function loginAndCaptureState(
   browser: Browser,
   creds: { email: string; password: string },
 ): Promise<StorageState> {
   const context = await browser.newContext();
+  await blockOffOriginRequests(context);
   const page = await context.newPage();
   await page.goto('/admin/login');
   await page.fill('input[name=email]', creds.email);
@@ -45,12 +63,14 @@ export const test = base.extend<{ ownerContext: BrowserContext; staffContext: Br
   ownerContext: async ({ browser }, provide) => {
     ownerStatePromise ??= loginAndCaptureState(browser, E2E_OWNER);
     const context = await browser.newContext({ storageState: await ownerStatePromise });
+    await blockOffOriginRequests(context);
     await provide(context);
     await context.close();
   },
   staffContext: async ({ browser }, provide) => {
     staffStatePromise ??= loginAndCaptureState(browser, E2E_STAFF);
     const context = await browser.newContext({ storageState: await staffStatePromise });
+    await blockOffOriginRequests(context);
     await provide(context);
     await context.close();
   },

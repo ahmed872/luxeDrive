@@ -20,6 +20,24 @@ import { defineConfig, devices } from '@playwright/test';
 const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium';
 const executablePath = existsSync(SANDBOX_CHROMIUM) ? SANDBOX_CHROMIUM : undefined;
 
+/**
+ * Chromium reaches out to Google endpoints on its own — variations/finch,
+ * autofill, component updates, safe-browsing — none of which any test needs.
+ * Behind an egress proxy that holds such connections open instead of
+ * refusing them, those requests never settle, the page's `load` event never
+ * fires, and every navigation stalls until the test times out: a browser
+ * problem that reads exactly like a slow application. Turning the
+ * background traffic off removes the whole class of failure.
+ */
+const CHROMIUM_ARGS = [
+  '--disable-background-networking',
+  '--disable-component-update',
+  '--disable-domain-reliability',
+  '--disable-sync',
+  '--no-default-browser-check',
+  '--no-first-run',
+];
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -35,7 +53,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        launchOptions: executablePath ? { executablePath } : {},
+        launchOptions: { args: CHROMIUM_ARGS, ...(executablePath ? { executablePath } : {}) },
       },
     },
   ],

@@ -76,7 +76,11 @@ test.describe('authenticated but unauthorized direct access (permission-aware, s
   }) => {
     const page = await staffContext.newPage();
     await page.goto('/admin/products');
-    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toBeVisible();
+    // Products is a real screen as of P07, not the placeholder it was when
+    // this test was written: STAFF holds `products.read`, so it gets the
+    // list itself. What it still must not get is any way to change it —
+    // covered by `admin-catalog-*` and the server-side matrix.
+    await expect(page.getByRole('heading', { name: /Products|المنتجات/ })).toBeVisible();
   });
 
   test('OWNER can reach every section, including Users', async ({ ownerContext }) => {

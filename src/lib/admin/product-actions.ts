@@ -16,6 +16,7 @@ import {
   type ProductUpdateInput,
 } from '@/modules/catalog';
 import type { Locale } from '@/lib/i18n/locales';
+import { revalidateStorefrontForProduct } from '@/lib/admin/revalidate-storefront';
 import type { ActionResult } from '@/lib/admin/action-result';
 
 /**
@@ -88,6 +89,7 @@ export async function updateProductAction(
     });
     revalidatePath('/admin/products');
     revalidatePath(`/admin/products/${id}`);
+    await revalidateStorefrontForProduct(product);
     return { ok: true, data: { updatedAt: product.updatedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: adminErrorMessage(error, locale) };
@@ -114,6 +116,7 @@ export async function publishProductAction(
     });
     revalidatePath('/admin/products');
     revalidatePath(`/admin/products/${id}`);
+    await revalidateStorefrontForProduct(product);
     return { ok: true, data: { updatedAt: product.updatedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: adminErrorMessage(error, locale) };
@@ -136,6 +139,7 @@ export async function archiveProductAction(
     });
     revalidatePath('/admin/products');
     revalidatePath(`/admin/products/${id}`);
+    await revalidateStorefrontForProduct(product);
     return { ok: true, data: { updatedAt: product.updatedAt.toISOString() } };
   } catch (error) {
     return { ok: false, error: adminErrorMessage(error, locale) };
@@ -148,7 +152,7 @@ export async function archiveProductAction(
 export async function deleteProductAction(id: string, locale: Locale): Promise<ActionResult> {
   try {
     const user = await requirePermission('products.delete');
-    await softDeleteProduct(id);
+    const product = await softDeleteProduct(id);
     await recordAuditEvent({
       action: 'product.deleted',
       entityType: 'Product',
@@ -157,6 +161,7 @@ export async function deleteProductAction(id: string, locale: Locale): Promise<A
       after: { softDeleted: true },
     });
     revalidatePath('/admin/products');
+    await revalidateStorefrontForProduct(product);
     return { ok: true };
   } catch (error) {
     return { ok: false, error: adminErrorMessage(error, locale) };
@@ -202,6 +207,7 @@ export async function bulkProductStatusAction(
           entityId: product.id,
           after: { status: product.status, bulk: true },
         });
+        await revalidateStorefrontForProduct(product);
         result.succeeded += 1;
       } catch (error) {
         result.failures.push({ id, error: adminErrorMessage(error, locale) });

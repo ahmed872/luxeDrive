@@ -89,12 +89,19 @@ export function MediaUploader({
 
   return (
     <div className={cn('inline-flex', className)}>
+      {/* The real control is the button below; this input exists only to
+          open the file picker when that button is pressed. `sr-only` hides
+          it visually but keeps it in the accessibility tree and the tab
+          order, where it reads as an unlabelled file field — so it is taken
+          out of both. */}
       <input
         ref={inputRef}
         id={inputId}
         type="file"
         accept={ACCEPTED_TYPES}
         multiple={multiple}
+        tabIndex={-1}
+        aria-hidden="true"
         className="sr-only"
         onChange={(event) => {
           const files = event.target.files;
