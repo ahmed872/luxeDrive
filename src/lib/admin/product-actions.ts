@@ -142,9 +142,9 @@ export async function archiveProductAction(
   }
 }
 
-/** Soft delete — `products.delete`, a permission STAFF and MANAGER don't
- * both have. Never a hard delete: order history, reviews and analytics all
- * still point at this row (ADR-021). */
+/** Soft delete — gated on `products.delete`, which STAFF does not have (a
+ * store manager does; see `ROLE_PERMISSIONS`). Never a hard delete: order
+ * history, reviews and analytics all still point at this row (ADR-021). */
 export async function deleteProductAction(id: string, locale: Locale): Promise<ActionResult> {
   try {
     const user = await requirePermission('products.delete');
