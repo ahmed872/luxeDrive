@@ -129,54 +129,73 @@ export async function consumeCouponUsage(input: {
   customerId: string | null;
   orderId: string;
 }): Promise<{ usedCount: number }> {
-  return db.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<
-      { usage_limit: number | null; per_customer_limit: number | null; active: boolean }[]
-    >`
-      SELECT usage_limit, per_customer_limit, active FROM coupons
-      WHERE id = ${input.couponId}::uuid FOR UPDATE
-    `;
-    const coupon = locked[0];
-    if (!coupon) {
-      throw new AppError('NOT_FOUND', { details: { entity: 'Coupon', id: input.couponId } });
-    }
-    if (!coupon.active) {
-      throw new AppError('COUPON_INVALID', { details: { reasonCode: 'coupon_inactive' } });
-    }
+  return db.$transaction((tx) => consumeCouponUsageWithin(tx, input));
+}
 
-    const used = await tx.couponRedemption.count({ where: { couponId: input.couponId } });
-    if (coupon.usage_limit !== null && used >= coupon.usage_limit) {
+/**
+ * The same consumption, joined to a transaction the caller already owns.
+ *
+ * Order finalization needs the redemption row, the stock decrement and the
+ * order itself to commit together (P10 §8): a coupon consumed for an order
+ * that then failed to save would be a discount the customer never received
+ * but can never use again. The `FOR UPDATE` lock on the coupon row is what
+ * makes the limit checks safe under concurrency, and it now holds for the
+ * whole order transaction rather than a separate short one.
+ */
+export async function consumeCouponUsageWithin(
+  tx: Prisma.TransactionClient,
+  input: {
+    couponId: string;
+    customerId: string | null;
+    orderId: string;
+  },
+): Promise<{ usedCount: number }> {
+  const locked = await tx.$queryRaw<
+    { usage_limit: number | null; per_customer_limit: number | null; active: boolean }[]
+  >`
+    SELECT usage_limit, per_customer_limit, active FROM coupons
+    WHERE id = ${input.couponId}::uuid FOR UPDATE
+  `;
+  const coupon = locked[0];
+  if (!coupon) {
+    throw new AppError('NOT_FOUND', { details: { entity: 'Coupon', id: input.couponId } });
+  }
+  if (!coupon.active) {
+    throw new AppError('COUPON_INVALID', { details: { reasonCode: 'coupon_inactive' } });
+  }
+
+  const used = await tx.couponRedemption.count({ where: { couponId: input.couponId } });
+  if (coupon.usage_limit !== null && used >= coupon.usage_limit) {
+    throw new AppError('COUPON_LIMIT_REACHED', {
+      details: { reasonCode: 'coupon_usage_limit_reached' },
+    });
+  }
+
+  if (coupon.per_customer_limit !== null && input.customerId !== null) {
+    const mine = await tx.couponRedemption.count({
+      where: { couponId: input.couponId, customerId: input.customerId },
+    });
+    if (mine >= coupon.per_customer_limit) {
       throw new AppError('COUPON_LIMIT_REACHED', {
-        details: { reasonCode: 'coupon_usage_limit_reached' },
+        details: { reasonCode: 'coupon_customer_limit_reached' },
       });
     }
+  }
 
-    if (coupon.per_customer_limit !== null && input.customerId !== null) {
-      const mine = await tx.couponRedemption.count({
-        where: { couponId: input.couponId, customerId: input.customerId },
-      });
-      if (mine >= coupon.per_customer_limit) {
-        throw new AppError('COUPON_LIMIT_REACHED', {
-          details: { reasonCode: 'coupon_customer_limit_reached' },
-        });
-      }
-    }
-
-    await tx.couponRedemption.create({
-      data: {
-        couponId: input.couponId,
-        customerId: input.customerId,
-        orderId: input.orderId,
-      },
-    });
-
-    const updated = await tx.coupon.update({
-      where: { id: input.couponId },
-      data: { usedCount: { increment: 1 } },
-    });
-
-    return { usedCount: updated.usedCount };
+  await tx.couponRedemption.create({
+    data: {
+      couponId: input.couponId,
+      customerId: input.customerId,
+      orderId: input.orderId,
+    },
   });
+
+  const updated = await tx.coupon.update({
+    where: { id: input.couponId },
+    data: { usedCount: { increment: 1 } },
+  });
+
+  return { usedCount: updated.usedCount };
 }
 
 // ---------------------------------------------------------------------------

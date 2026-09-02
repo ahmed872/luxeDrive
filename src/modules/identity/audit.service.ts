@@ -57,14 +57,29 @@ export type AuditAction =
   | 'promotion.updated'
   | 'promotion.activated'
   | 'promotion.deactivated'
-  | 'promotion.deleted';
+  | 'promotion.deleted'
+  // P10 — orders. An order is the record a dispute is argued over, so every
+  // change of hands is logged: who confirmed it, who cancelled it, who moved
+  // the shipment along. `order.created` has a null actor when the customer
+  // placed it themselves — there is no admin to name.
+  | 'order.created'
+  | 'order.status_changed'
+  | 'order.cancelled'
+  | 'order.fulfillment_changed';
 
 /** Every entity type an audit event can be about — `entityType` is a plain
  * string column at the DB level (no enum constraint), but a fixed union
  * here keeps every call site naming a real, spelled-consistently type
  * rather than free-typing "Products" in one place and "product" in another. */
 export type AuditEntityType =
-  'User' | 'Product' | 'Category' | 'Brand' | 'AttributeDefinition' | 'Variant' | 'Coupon';
+  | 'User'
+  | 'Product'
+  | 'Category'
+  | 'Brand'
+  | 'AttributeDefinition'
+  | 'Variant'
+  | 'Coupon'
+  | 'Order';
 
 export interface RecordAuditEventInput {
   action: AuditAction;
@@ -83,7 +98,21 @@ export interface RecordAuditEventInput {
 }
 
 export async function recordAuditEvent(input: RecordAuditEventInput): Promise<void> {
-  await db.auditLog.create({
+  await recordAuditEventWithin(db, input);
+}
+
+/**
+ * The same write, joined to a transaction the caller already owns.
+ *
+ * Order finalization writes its audit entry inside the same transaction that
+ * creates the order (P10 §23), so the log cannot record an order that was
+ * rolled back, and an order cannot exist with no record of who placed it.
+ */
+export async function recordAuditEventWithin(
+  client: Prisma.TransactionClient | typeof db,
+  input: RecordAuditEventInput,
+): Promise<void> {
+  await client.auditLog.create({
     data: {
       action: input.action,
       entityType: input.entityType ?? 'User',

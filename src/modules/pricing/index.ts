@@ -65,6 +65,7 @@ export {
   evaluateCouponForCart,
   countRedemptions,
   consumeCouponUsage,
+  consumeCouponUsageWithin,
   createCoupon,
   updateCoupon,
   setCouponActive,

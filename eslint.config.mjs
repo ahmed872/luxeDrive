@@ -31,6 +31,10 @@ const MODULE_DEPENDENCIES = {
   analytics: ['core'],
   orders: [
     'core',
+    // P10: orders write audit entries and name the staff member who moved a
+    // status, both of which identity owns. Adding the edge here rather than
+    // reaching around it keeps the graph the honest description of the code.
+    'identity',
     'catalog',
     'pricing',
     'inventory',

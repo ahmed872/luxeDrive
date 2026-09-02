@@ -59,6 +59,22 @@ export const adjustStockInputSchema = z
 
 export type AdjustStockInput = z.input<typeof adjustStockInputSchema>;
 
+/** The same shape, but accepting the two reasons only the order flow may
+ * use. Kept internal: `consumeStockForOrder`/`restoreStockForOrder` below are
+ * the only way to reach them, so no caller can label a warehouse correction a
+ * SALE, or a sale a correction. */
+const orderAdjustStockSchema = z.object({
+  variantId: z.string().uuid(),
+  delta: z
+    .number()
+    .int()
+    .refine((value) => value !== 0, 'delta must not be zero'),
+  reason: z.enum(['SALE', 'CANCELLATION'] as const satisfies readonly InventoryReason[]),
+  note: z.string().trim().min(1).max(500).nullable().optional(),
+  actorUserId: z.string().uuid().nullable().optional(),
+  orderId: z.string().uuid(),
+});
+
 export interface StockAdjustmentResult {
   adjustment: InventoryAdjustment;
   variant: Variant;
@@ -84,68 +100,136 @@ export interface StockAdjustmentResult {
  */
 export async function adjustStock(input: AdjustStockInput): Promise<StockAdjustmentResult> {
   const parsed = adjustStockInputSchema.parse(input);
+  return db.$transaction((tx) => applyStockMovement(tx, parsed));
+}
 
-  return db.$transaction(async (tx) => {
-    // `FOR UPDATE` is not expressible through Prisma's query API, and this
-    // lock is the whole point of the transaction — a plain findUnique would
-    // let two concurrent adjustments read the same "previous" value.
-    const locked = await tx.$queryRaw<{ stock_quantity: number; track_inventory: boolean }[]>`
-      SELECT stock_quantity, track_inventory
-      FROM variants
-      WHERE id = ${parsed.variantId}::uuid
-      FOR UPDATE
-    `;
+/**
+ * Take stock for an order, inside the caller's transaction.
+ *
+ * Order finalization has to decrement stock, create the order, consume the
+ * coupon and clear the cart together or not at all (P10 §6). Opening a second
+ * transaction here would put the decrement on a different connection, outside
+ * that boundary — stock could be taken for an order that then failed to be
+ * created. Joining the caller's `tx` keeps one atomic unit while leaving this
+ * module the only writer of `stockQuantity` (P08 §2).
+ *
+ * Concurrency comes from the same `FOR UPDATE` lock the admin path uses: two
+ * checkouts racing for the last unit serialise on the variant row, the second
+ * one reads the first one's result, and its negative-stock guard rejects it.
+ */
+export async function consumeStockForOrderWithin(
+  tx: Prisma.TransactionClient,
+  input: { variantId: string; quantity: number; orderId: string; note?: string | null },
+): Promise<StockAdjustmentResult> {
+  const parsed = orderAdjustStockSchema.parse({
+    variantId: input.variantId,
+    delta: -Math.abs(input.quantity),
+    reason: 'SALE',
+    orderId: input.orderId,
+    note: input.note ?? null,
+  });
+  return applyStockMovement(tx, parsed);
+}
 
-    const current = locked[0];
-    if (!current) {
-      throw new AppError('NOT_FOUND', {
-        details: { entity: 'Variant', id: parsed.variantId },
-      });
-    }
+/**
+ * Put stock back when an order is cancelled, inside the caller's transaction.
+ *
+ * Idempotency is not this function's job — it moves stock every time it is
+ * called. `cancelOrder` decides *whether* to call it, using the order's
+ * `inventoryRestoredAt` stamp set in the same transaction, so a repeated
+ * cancellation never reaches here twice (P10 §18).
+ */
+export async function restoreStockForOrderWithin(
+  tx: Prisma.TransactionClient,
+  input: {
+    variantId: string;
+    quantity: number;
+    orderId: string;
+    actorUserId?: string | null;
+    note?: string | null;
+  },
+): Promise<StockAdjustmentResult> {
+  const parsed = orderAdjustStockSchema.parse({
+    variantId: input.variantId,
+    delta: Math.abs(input.quantity),
+    reason: 'CANCELLATION',
+    orderId: input.orderId,
+    actorUserId: input.actorUserId ?? null,
+    note: input.note ?? null,
+  });
+  return applyStockMovement(tx, parsed);
+}
 
-    const previousQuantity = current.stock_quantity;
-    const newQuantity =
-      parsed.setTo !== undefined ? parsed.setTo : previousQuantity + (parsed.delta ?? 0);
-    const delta = newQuantity - previousQuantity;
+/**
+ * The one place a stock quantity actually changes. Everything above is a
+ * caller deciding which movement to ask for; this decides whether it is
+ * allowed and records it.
+ */
+async function applyStockMovement(
+  tx: Prisma.TransactionClient,
+  parsed:
+    | z.output<typeof adjustStockInputSchema>
+    | (z.output<typeof orderAdjustStockSchema> & { setTo?: undefined }),
+): Promise<StockAdjustmentResult> {
+  // `FOR UPDATE` is not expressible through Prisma's query API, and this
+  // lock is the whole point of the transaction — a plain findUnique would
+  // let two concurrent adjustments read the same "previous" value.
+  const locked = await tx.$queryRaw<{ stock_quantity: number; track_inventory: boolean }[]>`
+    SELECT stock_quantity, track_inventory
+    FROM variants
+    WHERE id = ${parsed.variantId}::uuid
+    FOR UPDATE
+  `;
 
-    if (delta === 0) {
-      throw new AppError('VALIDATION_FAILED', {
-        internalMessage: 'Adjustment would not change the stock level',
-        details: { reasonCode: 'stock_unchanged' },
-      });
-    }
-
-    if (newQuantity < 0) {
-      throw new AppError('OUT_OF_STOCK', {
-        internalMessage: `Adjustment would take stock to ${newQuantity}`,
-        details: {
-          reasonCode: 'stock_would_go_negative',
-          previousQuantity,
-          requested: delta,
-        },
-      });
-    }
-
-    const variant = await tx.variant.update({
-      where: { id: parsed.variantId },
-      data: { stockQuantity: newQuantity },
+  const current = locked[0];
+  if (!current) {
+    throw new AppError('NOT_FOUND', {
+      details: { entity: 'Variant', id: parsed.variantId },
     });
+  }
 
-    const adjustment = await tx.inventoryAdjustment.create({
-      data: {
-        variantId: parsed.variantId,
-        delta,
+  const previousQuantity = current.stock_quantity;
+  const newQuantity =
+    parsed.setTo !== undefined ? parsed.setTo : previousQuantity + (parsed.delta ?? 0);
+  const delta = newQuantity - previousQuantity;
+
+  if (delta === 0) {
+    throw new AppError('VALIDATION_FAILED', {
+      internalMessage: 'Adjustment would not change the stock level',
+      details: { reasonCode: 'stock_unchanged' },
+    });
+  }
+
+  if (newQuantity < 0) {
+    throw new AppError('OUT_OF_STOCK', {
+      internalMessage: `Adjustment would take stock to ${newQuantity}`,
+      details: {
+        reasonCode: 'stock_would_go_negative',
         previousQuantity,
-        newQuantity,
-        reason: parsed.reason,
-        note: parsed.note ?? null,
-        actorUserId: parsed.actorUserId ?? null,
-        orderId: parsed.orderId ?? null,
+        requested: delta,
       },
     });
+  }
 
-    return { adjustment, variant };
+  const variant = await tx.variant.update({
+    where: { id: parsed.variantId },
+    data: { stockQuantity: newQuantity },
   });
+
+  const adjustment = await tx.inventoryAdjustment.create({
+    data: {
+      variantId: parsed.variantId,
+      delta,
+      previousQuantity,
+      newQuantity,
+      reason: parsed.reason,
+      note: parsed.note ?? null,
+      actorUserId: parsed.actorUserId ?? null,
+      orderId: parsed.orderId ?? null,
+    },
+  });
+
+  return { adjustment, variant };
 }
 
 export const inventoryPolicyInputSchema = z.object({

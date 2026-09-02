@@ -21,6 +21,8 @@
 
 export {
   adjustStock,
+  consumeStockForOrderWithin,
+  restoreStockForOrderWithin,
   setInventoryPolicy,
   listAdjustments,
   MANUAL_INVENTORY_REASONS,

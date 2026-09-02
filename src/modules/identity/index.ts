@@ -49,6 +49,12 @@ export {
   type VerifyCredentialsResult,
 } from './user.service';
 
-export { recordAuditEvent, type AuditAction, type RecordAuditEventInput } from './audit.service';
+export {
+  recordAuditEvent,
+  recordAuditEventWithin,
+  type AuditAction,
+  type AuditEntityType,
+  type RecordAuditEventInput,
+} from './audit.service';
 
 export { revokeAllUserSessions, revokeDbSession } from './session.service';
