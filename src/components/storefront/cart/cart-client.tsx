@@ -127,8 +127,14 @@ export function CartClient({
                 key={line.variantId}
                 className="flex gap-4 rounded-(--radius-surface) border border-(--color-border) bg-(--color-surface) p-4"
               >
+                {/* The image links to the same place as the name below it.
+                    Hidden from assistive technology and skipped by the
+                    keyboard so the line offers one link, not two identical
+                    ones a screen-reader user has to hear twice. */}
                 <Link
                   href={`/${locale}/p/${line.productSlug}`}
+                  aria-hidden="true"
+                  tabIndex={-1}
                   className="shrink-0 overflow-hidden rounded-(--radius-control) bg-(--color-surface-raised)"
                 >
                   {line.image ? (

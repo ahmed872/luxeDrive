@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 /**
  * Product detail page — gallery, tabs, wishlist (client-side placeholder),
- * add-to-cart (honest "not available yet" placeholder), related products,
+ * add-to-cart (a real server-backed cart since P09), related products,
  * recently-viewed. This catalog's real products are all single-variant (no
  * `ProductOption` rows — cars don't need Color/Size), so the generic
  * variant selector's own matching logic is covered at the unit level
@@ -38,12 +38,20 @@ test.describe('product detail page', () => {
     await expect(page.getByText('لا توجد تقييمات بعد')).toBeVisible();
   });
 
-  test('add to cart and buy now honestly say the cart is not available yet', async ({ page }) => {
+  /**
+   * P05 asserted that this button honestly said the cart did not exist yet.
+   * That behaviour is gone on purpose: P09 built the cart, so the button now
+   * adds to it. The test is rewritten rather than deleted, because the thing
+   * worth guarding is unchanged — pressing it must do the real thing and say
+   * so, never fake a success.
+   */
+  test('add to cart adds the item and confirms it', async ({ page }) => {
     await page.goto('/ar/p/mercedes-benz-s-class');
     await page.getByRole('button', { name: 'أضف إلى السلة' }).click();
     // The toast renders its message twice on purpose — once visibly, once
-    // in a screen-reader live region — so this targets the visible one.
-    await expect(page.getByText('السلة غير متاحة بعد', { exact: true })).toBeVisible();
+    // in a screen-reader live region — so this targets the first.
+    await expect(page.getByText('أُضيف إلى السلة').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'السلة' })).toContainText('1');
   });
 
   test('wishlist toggle persists across a reload (localStorage placeholder)', async ({ page }) => {
