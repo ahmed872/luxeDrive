@@ -15,6 +15,20 @@ test.beforeAll(() => {
   execSync('pnpm db:seed-e2e-admins', { cwd: process.cwd(), stdio: 'inherit' });
 });
 
+/**
+ * The login form's error, and only it.
+ *
+ * A bare `getByRole('alert')` is ambiguous: Next renders its route announcer
+ * as `<div role="alert" id="__next-route-announcer__">` outside every
+ * landmark, so whether the query matches one element or two depends on
+ * whether that announcer happens to be mounted — which made these
+ * assertions fail intermittently with a strict-mode violation rather than a
+ * real one. Scoping to `main` names the alert this test actually means.
+ */
+function loginAlert(page: import('@playwright/test').Page) {
+  return page.locator('main').getByRole('alert');
+}
+
 test.describe('admin login', () => {
   test('shows no demo credentials or implementation hints anywhere on the page', async ({
     page,
@@ -32,7 +46,7 @@ test.describe('admin login', () => {
     await page.fill('input[name=email]', E2E_OWNER.email);
     await page.fill('input[name=password]', 'definitely-the-wrong-password-1');
     await page.click('button[type=submit]');
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(loginAlert(page)).toBeVisible();
     await expect(page).toHaveURL(/\/admin\/login$/);
   });
 
@@ -43,13 +57,13 @@ test.describe('admin login', () => {
     await page.fill('input[name=email]', 'nobody-at-all@example.com');
     await page.fill('input[name=password]', 'whatever-password-1');
     await page.click('button[type=submit]');
-    const unknownEmailError = await page.getByRole('alert').textContent();
+    const unknownEmailError = await loginAlert(page).textContent();
 
     await page.goto('/admin/login');
     await page.fill('input[name=email]', E2E_OWNER.email);
     await page.fill('input[name=password]', 'wrong-password-for-owner-1');
     await page.click('button[type=submit]');
-    const wrongPasswordError = await page.getByRole('alert').textContent();
+    const wrongPasswordError = await loginAlert(page).textContent();
 
     expect(unknownEmailError?.trim()).toBe(wrongPasswordError?.trim());
   });
@@ -61,8 +75,8 @@ test.describe('admin login', () => {
     await page.fill('input[name=email]', E2E_DISABLED.email);
     await page.fill('input[name=password]', E2E_DISABLED.password);
     await page.click('button[type=submit]');
-    await expect(page.getByRole('alert')).toBeVisible();
-    const errorText = await page.getByRole('alert').textContent();
+    await expect(loginAlert(page)).toBeVisible();
+    const errorText = await loginAlert(page).textContent();
     expect(errorText?.toLowerCase()).not.toContain('disab');
     expect(errorText?.toLowerCase()).not.toMatch(/معطّل|موقوف/);
     await expect(page).toHaveURL(/\/admin\/login$/);
