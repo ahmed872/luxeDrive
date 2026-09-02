@@ -122,7 +122,14 @@
   --color-foreground: var(--color-text);
   --color-text-muted: oklch(0.52 0.012 250);
   --color-muted-foreground: var(--color-text-muted);
-  --color-text-subtle: oklch(0.65 0.01 250);
+  /* 0.54, not the 0.65 P02 shipped: at 0.65 this token renders #8b9095, which
+     is 3.2:1 on the surface it sits on — below the 4.5:1 WCAG AA floor for
+     normal text. It is used for real information (a field's "optional" note,
+     a format hint, "Guest" on an order), not decoration, so 3:1 is not the
+     applicable threshold. 0.54 clears 4.5:1 against every light surface —
+     background, surface and surface-raised alike. Caught by axe on the P10
+     checkout, which is the first screen to put body-sized text in it. */
+  --color-text-subtle: oklch(0.54 0.01 250);
 
   --color-brand: oklch(0.28 0.045 250);
   --color-brand-hover: oklch(0.34 0.05 250);
@@ -198,7 +205,9 @@
   --color-foreground: var(--color-text);
   --color-text-muted: oklch(0.72 0.008 250);
   --color-muted-foreground: var(--color-text-muted);
-  --color-text-subtle: oklch(0.6 0.008 250);
+  /* 0.65 for the same reason as light's 0.54: at 0.6 this token falls to
+     3.8:1 on `--color-elevated`, the lightest dark surface it can sit on. */
+  --color-text-subtle: oklch(0.65 0.008 250);
 
   --color-brand: oklch(0.78 0.09 250);
   --color-brand-hover: oklch(0.83 0.08 250);
@@ -274,7 +283,7 @@
     --color-foreground: var(--color-text);
     --color-text-muted: oklch(0.72 0.008 250);
     --color-muted-foreground: var(--color-text-muted);
-    --color-text-subtle: oklch(0.6 0.008 250);
+    --color-text-subtle: oklch(0.65 0.008 250);
 
     --color-brand: oklch(0.78 0.09 250);
     --color-brand-hover: oklch(0.83 0.08 250);
