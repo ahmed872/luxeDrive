@@ -59,6 +59,14 @@ export function CartClient({
 
   const money = (minor: number) => formatMoney(minor, { locale, currency });
 
+  /**
+   * Checkout is blocked while a mutation is in flight, and while any line
+   * carries an issue — an out-of-stock or reduced line is exactly what the
+   * server refuses at order creation, so sending the customer through the
+   * address form first would waste their time to reach the same answer.
+   */
+  const checkoutBlocked = pending !== null || cart.lines.some((line) => line.issues.length > 0);
+
   async function run(
     key: string,
     action: () => Promise<{ ok: boolean; data?: CartView; error?: string }>,
@@ -338,24 +346,27 @@ export function CartClient({
 
           <p className="text-caption text-(--color-text-muted)">{t.priceChangedNotice}</p>
 
-          {/* Checkout does not exist yet, and pretending otherwise is worse
-              than saying so — the same rule P05 applied to this cart. */}
+          {/* P10: checkout exists. Disabled while a cart mutation is in
+              flight, so nobody carries a half-applied change into it, and
+              blocked entirely when a line cannot be bought — the server
+              would refuse that order anyway, and refusing it here explains
+              why instead of failing after the address is typed. */}
           <Button
-            type="button"
+            asChild={!checkoutBlocked}
             className="w-full"
-            disabled={pending !== null}
-            onClick={() =>
-              toast({
-                title: t.checkoutUnavailable,
-                description: t.checkoutUnavailableDescription,
-                variant: 'default',
-              })
-            }
+            disabled={checkoutBlocked}
+            aria-disabled={checkoutBlocked || undefined}
           >
-            {pending !== null ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : null}
-            {t.checkout}
+            {checkoutBlocked ? (
+              <span>
+                {pending !== null ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : null}
+                {t.checkout}
+              </span>
+            ) : (
+              <Link href={`/${locale}/checkout`}>{t.checkout}</Link>
+            )}
           </Button>
         </div>
       </aside>
