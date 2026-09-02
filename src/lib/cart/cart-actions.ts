@@ -140,6 +140,17 @@ export async function removeCouponAction(locale: Locale): Promise<ActionResult<C
   });
 }
 
+/** Re-reads the cart without changing it. Every read recalculates, so this
+ * is how a page refreshes after something outside it (a price change, a
+ * promotion being switched off) may have altered the answer. */
+export async function getCartAction(locale: Locale): Promise<ActionResult<CartView>> {
+  try {
+    return { ok: true, data: await getCartView(await resolveCartOwnerForRead()) };
+  } catch (error) {
+    return { ok: false, error: cartErrorMessage(error, locale) };
+  }
+}
+
 /** The header badge. Kept separate from `getCartView` so the storefront
  * layout can stay cached while one small client component asks for a live
  * number. */

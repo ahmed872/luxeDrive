@@ -423,3 +423,72 @@ describe('getCartItemCount', () => {
     expect(await getCartItemCount({ customerId: null, guestToken: newGuestToken() })).toBe(0);
   });
 });
+
+describe('concurrent cart updates', () => {
+  it('two simultaneous adds of the same variant settle on one coherent line', async () => {
+    const owner = await guestOwner();
+    const { variant } = await shoes({ stockQuantity: 50 });
+
+    // The unique index on (cartId, variantId) is what makes this safe: the
+    // upserts serialise on it rather than producing two rows for the same
+    // variant, which would show the customer a duplicated product.
+    const results = await Promise.allSettled([
+      addItem(owner, { variantId: variant.id, quantity: 2 }),
+      addItem(owner, { variantId: variant.id, quantity: 3 }),
+    ]);
+
+    expect(results.some((r) => r.status === 'fulfilled')).toBe(true);
+
+    const view = await getCartView(owner);
+    expect(view.lines).toHaveLength(1);
+    expect(view.lines[0]!.quantity).toBeGreaterThan(0);
+    expect(view.lines[0]!.quantity).toBeLessThanOrEqual(5);
+  });
+
+  it('concurrent adds of different variants both land', async () => {
+    const owner = await guestOwner();
+    const category = await createCategory({ slug: 'shoes', nameAr: 'أحذية', nameEn: 'Shoes' });
+
+    // Two single-variant products: a product with no options must have
+    // exactly one variant, which is the catalog's own rule.
+    const made = [];
+    for (const [index, priceMinor] of [10_000, 20_000].entries()) {
+      const product = await createProduct({
+        product: {
+          slug: `multi-${index}`,
+          nameAr: 'متعدد',
+          nameEn: 'Multi',
+          categoryId: category.id,
+        },
+        variants: [{ sku: `M-${index}`, priceMinor, stockQuantity: 5 }],
+      });
+      await publishProduct(product.id);
+      made.push(product.variants[0]!);
+    }
+
+    await Promise.all([
+      addItem(owner, { variantId: made[0]!.id, quantity: 1 }),
+      addItem(owner, { variantId: made[1]!.id, quantity: 2 }),
+    ]);
+
+    const view = await getCartView(owner);
+    expect(view.lines).toHaveLength(2);
+    expect(view.itemCount).toBe(3);
+    expect(view.subtotalMinor).toBe(10_000 + 2 * 20_000);
+  });
+
+  it('a cart never exceeds available stock, even under concurrent adds', async () => {
+    const owner = await guestOwner();
+    const { variant } = await shoes({ stockQuantity: 4 });
+
+    await Promise.allSettled([
+      addItem(owner, { variantId: variant.id, quantity: 3 }),
+      addItem(owner, { variantId: variant.id, quantity: 3 }),
+    ]);
+
+    const view = await getCartView(owner);
+    // Whatever interleaving happened, the recalculation on read is what the
+    // customer sees, and it can never be more than the shelf holds.
+    expect(view.lines[0]!.quantity).toBeLessThanOrEqual(4);
+  });
+});
