@@ -49,14 +49,22 @@ export type AuditAction =
   | 'inventory.adjusted'
   | 'inventory.policy_changed'
   | 'price.updated'
-  | 'price.bulk_updated';
+  | 'price.bulk_updated'
+  // P09 — promotions. A discount rule is a commercial commitment, so who
+  // created it, who changed its value or window, and who switched it on or
+  // off all have to be answerable from the log.
+  | 'promotion.created'
+  | 'promotion.updated'
+  | 'promotion.activated'
+  | 'promotion.deactivated'
+  | 'promotion.deleted';
 
 /** Every entity type an audit event can be about — `entityType` is a plain
  * string column at the DB level (no enum constraint), but a fixed union
  * here keeps every call site naming a real, spelled-consistently type
  * rather than free-typing "Products" in one place and "product" in another. */
 export type AuditEntityType =
-  'User' | 'Product' | 'Category' | 'Brand' | 'AttributeDefinition' | 'Variant';
+  'User' | 'Product' | 'Category' | 'Brand' | 'AttributeDefinition' | 'Variant' | 'Coupon';
 
 export interface RecordAuditEventInput {
   action: AuditAction;
