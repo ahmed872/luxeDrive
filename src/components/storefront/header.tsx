@@ -87,11 +87,7 @@ export async function StorefrontHeader({ locale }: StorefrontHeaderProps) {
           </Suspense>
           <ThemeToggle label={t.nav.theme} />
           <WishlistNavLink locale={locale} label={t.nav.wishlist} />
-          <CartNavLink
-            label={t.nav.cart}
-            toastTitle={t.product.cartComingSoonTitle}
-            toastDescription={t.product.cartComingSoonDescription}
-          />
+          <CartNavLink locale={locale} label={t.nav.cart} />
         </div>
       </div>
 
