@@ -55,18 +55,44 @@ enum AttributeType {
   BOOLEAN
 }
 
-/// Two entry states, one downstream path (ADR-025). Online orders start at
-/// PENDING_PAYMENT; WhatsApp and admin-created orders start at
-/// PENDING_MANUAL_CONFIRMATION and require a permissioned staff confirmation.
+/// Where the order is in its commercial life. Two entry states, one
+/// downstream path (ADR-025): online orders start at PENDING_PAYMENT;
+/// WhatsApp and admin-created orders start at PENDING_MANUAL_CONFIRMATION
+/// and require a permissioned staff confirmation.
+///
+/// P10 split what used to be one enum into three (P10 §9). SHIPPED and
+/// DELIVERED moved to `FulfillmentStatus` and REFUNDED to `PaymentStatus`,
+/// because an order that is paid, cancelled and refunded needs to say all
+/// three things at once — a single column can only ever say one. No order
+/// data existed when this changed.
 enum OrderStatus {
   PENDING_PAYMENT
   PENDING_MANUAL_CONFIRMATION
   CONFIRMED
   PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+/// Has the money arrived? Owned by the payment domain; P10 only ever sets
+/// UNPAID (no provider exists yet), and P11's webhooks drive the rest.
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
   SHIPPED
   DELIVERED
   CANCELLED
-  REFUNDED
+}
+
+/// What kind of change an `OrderEvent` records. Kept generic so all three
+/// state machines, plus creation and free-text notes, share one timeline
+/// rather than each growing its own history table.
+enum OrderEventType {
+  CREATED
+  ORDER_STATUS
+  PAYMENT_STATUS
+  FULFILLMENT_STATUS
+  NOTE
 }
 
 /// Reporting only — never used to branch pricing, inventory or permission rules.
@@ -83,7 +109,12 @@ enum PaymentProvider {
   STRIPE
 }
 
+/// UNPAID is the resting state of an order nobody has tried to pay yet — the
+/// only value P10 ever writes, because P10 has no payment provider. PENDING
+/// means a provider session is open and its outcome is not known; P11 owns
+/// every transition out of it.
 enum PaymentStatus {
+  UNPAID
   PENDING
   PAID
   FAILED
@@ -679,28 +710,55 @@ model CouponRedemption {
 // ---------------------------------------------------------------------------
 
 model Order {
-  id              String      @id @default(uuid()) @db.Uuid
-  number          String      @unique
-  customerId      String?     @map("customer_id") @db.Uuid
-  status          OrderStatus
-  source          OrderSource @default(ONLINE)
-  subtotalMinor   Int         @map("subtotal_minor")
-  discountMinor   Int         @default(0) @map("discount_minor")
-  shippingMinor   Int         @default(0) @map("shipping_minor")
-  taxMinor        Int         @default(0) @map("tax_minor")
-  totalMinor      Int         @map("total_minor")
-  currency        String      @default("SAR")
-  couponId        String?     @map("coupon_id") @db.Uuid
+  id                String            @id @default(uuid()) @db.Uuid
+  /// Customer-facing identifier. Random, not sequential: a sequential number
+  /// leaks how many orders the store has taken and makes a neighbouring
+  /// order trivially guessable (P10 §2).
+  number            String            @unique
+  customerId        String?           @map("customer_id") @db.Uuid
+  status            OrderStatus
+  paymentStatus     PaymentStatus     @default(UNPAID) @map("payment_status")
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED) @map("fulfillment_status")
+  source            OrderSource       @default(ONLINE)
+  subtotalMinor     Int               @map("subtotal_minor")
+  discountMinor     Int               @default(0) @map("discount_minor")
+  /// Zero and not calculated in P10 — no shipping or tax engine exists yet
+  /// (P10 §21). The columns are here so adding one later is a service
+  /// change, not a schema migration on a table full of live orders.
+  shippingMinor     Int               @default(0) @map("shipping_minor")
+  taxMinor          Int               @default(0) @map("tax_minor")
+  totalMinor        Int               @map("total_minor")
+  currency          String            @default("SAR")
+  couponId          String?           @map("coupon_id") @db.Uuid
+  /// The code as typed at checkout. Kept even if the coupon row is later
+  /// deleted, so the order still explains its own discount.
+  couponCode        String?           @map("coupon_code")
   /// Address snapshots, so an order stays correct if the customer edits or
-  /// deletes the address it was placed with.
-  shippingAddress Json?       @map("shipping_address")
-  billingAddress  Json?       @map("billing_address")
-  customerEmail   String?     @map("customer_email")
-  customerPhone   String?     @map("customer_phone")
-  note            String?
-  placedAt        DateTime    @default(now()) @map("placed_at")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  /// deletes the address it was placed with. Shape is validated by
+  /// `shippingAddressSchema` in the orders module before it is written.
+  shippingAddress   Json?             @map("shipping_address")
+  billingAddress    Json?             @map("billing_address")
+  contactName       String?           @map("contact_name")
+  customerEmail     String?           @map("customer_email")
+  customerPhone     String?           @map("customer_phone")
+  note              String?
+  /// Guest access credential, hashed the same way session tokens are: the
+  /// plaintext exists only in the customer's URL and cookie, never at rest,
+  /// so a database read cannot open somebody's order (P10 §14).
+  accessTokenHash   String?           @unique @map("access_token_hash")
+  /// Server-side duplicate-submission guard (P10 §19). Unique, so two
+  /// concurrent submissions of the same checkout collide in the database
+  /// rather than racing past an application-level check.
+  idempotencyKey    String?           @unique @map("idempotency_key")
+  /// Set once, when cancellation restores stock. Its presence is what makes
+  /// a repeated cancellation a no-op instead of a second restock (P10 §18).
+  inventoryRestoredAt DateTime?       @map("inventory_restored_at")
+  confirmedAt       DateTime?         @map("confirmed_at")
+  cancelledAt       DateTime?         @map("cancelled_at")
+  cancellationReason String?          @map("cancellation_reason")
+  placedAt          DateTime          @default(now()) @map("placed_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   customer    Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   coupon      Coupon?               @relation(fields: [couponId], references: [id], onDelete: SetNull)
@@ -713,39 +771,63 @@ model Order {
 
   @@index([customerId, placedAt])
   @@index([status])
+  @@index([paymentStatus])
+  @@index([fulfillmentStatus])
   @@index([source, status])
+  @@index([placedAt])
   @@map("orders")
 }
 
 /// Snapshot columns keep historical invoices correct no matter what happens to
 /// the product later, including deletion (ADR-007).
 model OrderItem {
-  id                   String @id @default(uuid()) @db.Uuid
-  orderId              String @map("order_id") @db.Uuid
-  variantId            String? @map("variant_id") @db.Uuid
-  productNameSnapshot  String @map("product_name_snapshot")
-  variantLabelSnapshot String? @map("variant_label_snapshot")
-  skuSnapshot          String @map("sku_snapshot")
-  unitPriceMinor       Int    @map("unit_price_minor")
-  quantity             Int
-  lineTotalMinor       Int    @map("line_total_minor")
+  id                     String  @id @default(uuid()) @db.Uuid
+  orderId                String  @map("order_id") @db.Uuid
+  /// References, for "buy it again" and reporting. Nullable and SetNull on
+  /// delete: the snapshot columns below are what actually renders the line,
+  /// so a deleted product leaves the invoice fully readable (P10 §3).
+  variantId              String? @map("variant_id") @db.Uuid
+  productId              String? @map("product_id") @db.Uuid
+  /// Snapshots. Bilingual because the order confirmation, the account page
+  /// and the admin screen each render in whichever language their reader
+  /// chose — resolving one language at write time would strand the other.
+  productNameArSnapshot  String  @map("product_name_ar_snapshot")
+  productNameEnSnapshot  String  @map("product_name_en_snapshot")
+  variantLabelArSnapshot String? @map("variant_label_ar_snapshot")
+  variantLabelEnSnapshot String? @map("variant_label_en_snapshot")
+  skuSnapshot            String  @map("sku_snapshot")
+  /// The selected options as chosen, e.g. [{nameAr, nameEn, valueAr, valueEn}].
+  optionsSnapshot        Json?   @map("options_snapshot")
+  unitPriceMinor         Int     @map("unit_price_minor")
+  quantity               Int
+  lineSubtotalMinor      Int     @map("line_subtotal_minor")
+  lineDiscountMinor      Int     @default(0) @map("line_discount_minor")
+  lineTotalMinor         Int     @map("line_total_minor")
+  currency               String  @default("SAR")
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([variantId])
   @@map("order_items")
 }
 
 /// Every status transition is recorded with who did it and when (ADR-025).
 model OrderEvent {
-  id          String       @id @default(uuid()) @db.Uuid
-  orderId     String       @map("order_id") @db.Uuid
-  fromStatus  OrderStatus? @map("from_status")
-  toStatus    OrderStatus  @map("to_status")
-  actorUserId String?      @map("actor_user_id") @db.Uuid
+  id          String         @id @default(uuid()) @db.Uuid
+  orderId     String         @map("order_id") @db.Uuid
+  type        OrderEventType
+  /// Enum values as strings, because one timeline carries three different
+  /// state machines. The service layer is typed; the column is not, which is
+  /// the price of a single ordered history instead of three interleaved ones.
+  fromValue   String?        @map("from_value")
+  toValue     String?        @map("to_value")
+  /// Null when the actor is the system: an order the customer placed, or a
+  /// transition a future payment webhook drives.
+  actorUserId String?        @map("actor_user_id") @db.Uuid
   note        String?
-  createdAt   DateTime     @default(now()) @map("created_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
