@@ -18,7 +18,11 @@ const MODULE_DEPENDENCIES = {
   search: ['core', 'catalog'],
   inventory: ['core', 'catalog'],
   pricing: ['core', 'catalog'],
-  cart: ['core', 'catalog', 'pricing', 'inventory'],
+  // `media` joins cart's dependencies in P09: a cart line shows the
+  // product's image, and resolving a storage key to a URL is `media`'s job —
+  // the same reason `catalog` depends on it. Duplicating that resolution
+  // inside `cart` would be a second way to build an image URL.
+  cart: ['core', 'catalog', 'media', 'pricing', 'inventory'],
   customers: ['core', 'identity', 'catalog'],
   payments: ['core'],
   notifications: ['core', 'settings'],

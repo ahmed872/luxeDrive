@@ -581,6 +581,13 @@ model Cart {
   customerId String?  @map("customer_id") @db.Uuid
   /// Long random token for guest carts, kept in an httpOnly cookie.
   guestToken String?  @unique @map("guest_token")
+  /// The promotion code the customer entered, stored normalised. Deliberately
+  /// the code rather than a foreign key: a cart guarantees nothing about
+  /// price or eligibility, and every read re-resolves the coupon and
+  /// re-checks it from scratch (P09 §16). Holding an id would imply the
+  /// promotion attached to this cart is still valid, which is exactly the
+  /// thing that must never be assumed.
+  couponCode String?  @map("coupon_code")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

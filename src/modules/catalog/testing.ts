@@ -13,6 +13,9 @@ export async function resetCatalogTables(): Promise<void> {
   // history pins the variant it describes, so it has to go first or the
   // variant delete below is refused.
   await db.inventoryAdjustment.deleteMany();
+  // `CartItem.variant` is `onDelete: Restrict` too (P09): a basket pins the
+  // variant it holds, for the same reason stock history does.
+  await db.cartItem.deleteMany();
   await db.variantOptionValue.deleteMany();
   await db.productImage.deleteMany();
   await db.variant.deleteMany();
