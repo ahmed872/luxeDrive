@@ -43,7 +43,6 @@ vi.mock('next/headers', () => ({
 const {
   addToCartAction,
   applyCouponAction,
-  clearCartAction,
   getCartAction,
   getCartCountAction,
   updateCartQuantityAction,
