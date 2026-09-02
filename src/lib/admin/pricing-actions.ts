@@ -99,21 +99,23 @@ export async function applyBulkPriceAction(
     const user = await requirePermission('products.update');
     const result = await applyBulkPrice({ variantIds, operation });
 
-    await recordAuditEvent({
-      action: 'price.bulk_updated',
-      entityType: 'Variant',
-      userId: user.id,
-      // A bulk change is one decision about many rows; recording it as one
-      // event with the operation and the affected SKUs keeps that shape,
-      // and the per-row before/after is in the snapshot rather than spread
-      // across N indistinguishable entries.
-      before: { prices: result.rows.map((row) => [row.sku, row.currentPriceMinor]) },
-      after: {
-        operation,
-        updated: result.updated,
-        prices: result.rows.map((row) => [row.sku, row.newPriceMinor]),
-      },
-    });
+    // One event per variant, not one for the batch: a bulk change is still
+    // N price changes, and "what happened to this SKU" has to be answerable
+    // by filtering the log on that variant. Each entry carries the shared
+    // operation, so the batch is still recoverable from the individual
+    // rows. A single batch-wide event would have no entity id to file
+    // itself under — `recordAuditEvent` would fall back to the actor's id,
+    // which reads as an event about a user.
+    for (const row of result.rows) {
+      await recordAuditEvent({
+        action: 'price.bulk_updated',
+        entityType: 'Variant',
+        userId: user.id,
+        entityId: row.variantId,
+        before: { priceMinor: row.currentPriceMinor },
+        after: { priceMinor: row.newPriceMinor, operation },
+      });
+    }
 
     await revalidateForVariants(variantIds);
     return { ok: true, data: { updated: result.updated } };

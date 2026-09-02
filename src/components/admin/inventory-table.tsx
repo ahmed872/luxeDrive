@@ -204,8 +204,14 @@ export function InventoryTable({
       key: 'actions',
       header: labels.actions,
       align: 'end',
+      // `relative`: the label below is `sr-only` (absolutely positioned) on
+      // small screens. Without a positioned ancestor its containing block is
+      // the viewport, so it sits at its static position — far inside the
+      // table's horizontal scroll — and widens the *document* rather than
+      // the scroll container, giving the whole admin page a horizontal
+      // scrollbar on a phone.
       cell: (row) => (
-        <div className="flex items-center justify-end gap-1">
+        <div className="relative flex items-center justify-end gap-1">
           <Button size="sm" variant="outline" onClick={() => setAdjusting(row)}>
             <PackagePlus className="size-4" aria-hidden="true" />
             <span className="sr-only sm:not-sr-only">{labels.adjust}</span>

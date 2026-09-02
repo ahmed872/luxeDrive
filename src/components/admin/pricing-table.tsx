@@ -251,6 +251,17 @@ function PriceEditor({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The version this editor is working against. Seeded from the server
+  // render and advanced by each successful save: without that, a second
+  // edit before the page refreshes would be refused as a conflict with the
+  // admin's *own* previous save — the concurrency check protecting them
+  // from themselves.
+  const [version, setVersion] = useState(row.updatedAt);
+  const [versionFor, setVersionFor] = useState(row.updatedAt);
+  if (versionFor !== row.updatedAt) {
+    setVersionFor(row.updatedAt);
+    setVersion(row.updatedAt);
+  }
 
   async function save(): Promise<void> {
     setBusy(true);
@@ -261,7 +272,7 @@ function PriceEditor({
         priceMinor: toMinor(Number(price) || 0),
         compareAtMinor: compareAt === '' ? null : toMinor(Number(compareAt)),
       },
-      row.updatedAt,
+      version,
       locale,
     );
     setBusy(false);
@@ -269,6 +280,7 @@ function PriceEditor({
       setError(result.error ?? null);
       return;
     }
+    if (result.data) setVersion(result.data.updatedAt);
     toast({ title: labels.priceSaved, variant: 'success' });
     onSaved();
   }

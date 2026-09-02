@@ -42,6 +42,10 @@ export interface VariantListingQuery {
 export interface VariantListingItem {
   variantId: string;
   sku: string;
+  /** The variant's own label if it has one, otherwise its option values
+   * joined — "أسود / 40", "Black / 40". A generated variant has no explicit
+   * label, and a screen that showed only its SKU would make an admin
+   * cross-reference a code to find the size they are counting. */
   variantLabelAr: string | null;
   variantLabelEn: string | null;
   productId: string;
@@ -136,6 +140,30 @@ function buildOrderBy(
   }
 }
 
+/** "Black / 40", in the order the options are defined — the same
+ * composition the product edit page shows, so a variant is named
+ * identically wherever an admin meets it. Null when the variant has no
+ * options at all (a single-variant product), leaving the caller to fall
+ * back to the SKU. */
+function composeLabel(
+  links: {
+    optionValue: {
+      valueAr: string;
+      valueEn: string;
+      position: number;
+      option: { position: number };
+    };
+  }[],
+  locale: 'ar' | 'en',
+): string | null {
+  if (links.length === 0) return null;
+  return links
+    .map((link) => link.optionValue)
+    .sort((a, b) => a.option.position - b.option.position || a.position - b.position)
+    .map((value) => (locale === 'ar' ? value.valueAr : value.valueEn))
+    .join(' / ');
+}
+
 export async function listVariantsForAdmin(
   query: VariantListingQuery = {},
 ): Promise<VariantListingResult> {
@@ -165,6 +193,9 @@ export async function listVariantsForAdmin(
       take: pageSize,
       include: {
         product: { select: { id: true, nameAr: true, nameEn: true, status: true } },
+        // Bounded by the page size, so this is one extra join over at most
+        // `pageSize` variants — not an N+1 over the catalog.
+        optionValues: { include: { optionValue: { include: { option: true } } } },
       },
     }),
     db.variant.count({ where }),
@@ -174,8 +205,8 @@ export async function listVariantsForAdmin(
     items: rows.map((row) => ({
       variantId: row.id,
       sku: row.sku,
-      variantLabelAr: row.labelAr,
-      variantLabelEn: row.labelEn,
+      variantLabelAr: row.labelAr ?? composeLabel(row.optionValues, 'ar'),
+      variantLabelEn: row.labelEn ?? composeLabel(row.optionValues, 'en'),
       productId: row.product.id,
       productNameAr: row.product.nameAr,
       productNameEn: row.product.nameEn,
