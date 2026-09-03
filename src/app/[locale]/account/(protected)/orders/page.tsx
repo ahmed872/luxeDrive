@@ -1,26 +1,24 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 
-import { getOptionalUser } from '@/modules/identity';
-import { findCustomerForUser } from '@/modules/customers';
+import { requireCustomerAccount } from '@/lib/customers/customer-identity';
 import { listCustomerOrders } from '@/modules/orders';
 import { formatMoney } from '@/modules/core';
 import { isLocale, type Locale } from '@/lib/i18n/locales';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { OrderStatusBadge } from '@/components/storefront/orders/order-status-badges';
 import { formatOrderDate } from '@/components/storefront/orders/order-detail';
-import { StorefrontBreadcrumbs } from '@/components/storefront/listing/storefront-breadcrumbs';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 
 /**
- * A customer's own orders.
- *
- * The customer id comes from the session and goes into the query, so the list
- * is scoped by construction — there is no order id in the URL to substitute
- * (P10 §15).
+ * A customer's own orders — paginated (P12 §19: never an unbounded
+ * historical fetch), scoped by the session-derived customer id from
+ * `requireCustomerAccount()`, never an id the client supplies. The
+ * surrounding `(protected)/layout.tsx` already gates sign-in; this file
+ * used to carry its own inline `getOptionalUser`/redirect check, which is
+ * now the layout's job instead of being duplicated on every page under it.
  */
 
 export const dynamic = 'force-dynamic';
@@ -46,24 +44,18 @@ export default async function AccountOrdersPage({
   const locale: Locale = isLocale(raw) ? raw : 'ar';
   const t = getDictionary(locale).orders;
 
-  const user = await getOptionalUser();
-  if (!user) redirect(`/${locale}`);
-  const customer = await findCustomerForUser(user.id);
-  if (!customer) redirect(`/${locale}`);
+  const account = await requireCustomerAccount();
 
   const query = await searchParams;
   const pageParam = Array.isArray(query.page) ? query.page[0] : query.page;
   const page = Number.parseInt(pageParam ?? '1', 10);
 
-  const orders = await listCustomerOrders(customer.id, {
+  const orders = await listCustomerOrders(account.customerId, {
     page: Number.isFinite(page) && page > 0 ? page : 1,
   });
 
   return (
-    <div className="container mx-auto flex flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
-      <StorefrontBreadcrumbs locale={locale} trail={[{ label: t.myOrders }]} />
-      <h1 className="text-h3 text-(--color-text)">{t.myOrders}</h1>
-
+    <div className="flex flex-col gap-6">
       {orders.items.length === 0 ? (
         <EmptyState
           title={t.noOrders}
