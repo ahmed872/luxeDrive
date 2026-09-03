@@ -13,10 +13,7 @@ import { expect, test } from '@playwright/test';
 test.describe.configure({ timeout: 180_000 });
 
 async function axe(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .include('body')
-    .exclude('nextjs-portal')
-    .analyze();
+  const results = await new AxeBuilder({ page }).include('body').exclude('nextjs-portal').analyze();
   expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
 }
 

@@ -71,8 +71,7 @@ export async function createEmailVerificationToken(userId: string): Promise<Crea
 }
 
 export type VerifyEmailResult =
-  | { ok: true; userId: string }
-  | { ok: false; reason: 'invalid' | 'expired' | 'used' };
+  { ok: true; userId: string } | { ok: false; reason: 'invalid' | 'expired' | 'used' };
 
 /**
  * Consumes a verification token. Every failure — a token that never
@@ -155,8 +154,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 }
 
 export type ResetPasswordResult =
-  | { ok: true }
-  | { ok: false; reason: 'invalid' | 'expired' | 'used' };
+  { ok: true } | { ok: false; reason: 'invalid' | 'expired' | 'used' };
 
 /**
  * Consumes a reset token and sets a new password. As with

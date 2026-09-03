@@ -122,8 +122,7 @@ export type VerifyCustomerFailureReason =
   'NOT_FOUND' | 'NO_PASSWORD' | 'WRONG_PASSWORD' | 'DISABLED' | 'NOT_CUSTOMER';
 
 export type VerifyCustomerCredentialsResult =
-  | { ok: true; user: User }
-  | { ok: false; reason: VerifyCustomerFailureReason };
+  { ok: true; user: User } | { ok: false; reason: VerifyCustomerFailureReason };
 
 /**
  * The storefront twin of `verifyAdminCredentials` (P12 §5): same shape,

@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db, isAppError } from '@/modules/core';
 import { resetIdentityTables } from '@/modules/identity/testing';
 
-import { registerCustomer, resolveCustomerForUser, updateCustomerProfile } from './customer.service';
+import {
+  registerCustomer,
+  resolveCustomerForUser,
+  updateCustomerProfile,
+} from './customer.service';
 import { resetCustomerTables } from './testing';
 
 /**
@@ -54,7 +58,11 @@ describe('registerCustomer', () => {
     });
 
     await expect(
-      registerCustomer({ email: 'shopper@example.com', password: 'another-horse-9', name: 'Second' }),
+      registerCustomer({
+        email: 'shopper@example.com',
+        password: 'another-horse-9',
+        name: 'Second',
+      }),
     ).rejects.toSatisfy((error: unknown) => isAppError(error) && error.code === 'CONFLICT');
 
     // The first registration stands; the rejected second attempt created
@@ -124,7 +132,11 @@ describe('updateCustomerProfile', () => {
 
   it('lazily creates the Customer row for a user who has never shopped before', async () => {
     const { createUser } = await import('@/modules/identity');
-    const user = await createUser({ email: 'lazy@example.com', password: 'correct-horse-9', role: 'CUSTOMER' });
+    const user = await createUser({
+      email: 'lazy@example.com',
+      password: 'correct-horse-9',
+      role: 'CUSTOMER',
+    });
     expect(await db.customer.findUnique({ where: { userId: user.id } })).toBeNull();
 
     const { customer } = await updateCustomerProfile(user.id, { name: 'Now A Customer' });

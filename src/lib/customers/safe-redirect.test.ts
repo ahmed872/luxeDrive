@@ -32,7 +32,9 @@ describe('safeAccountRedirect', () => {
   });
 
   it('preserves a query string on an otherwise-safe path', () => {
-    expect(safeAccountRedirect('ar', '/ar/account/orders?page=2')).toBe('/ar/account/orders?page=2');
+    expect(safeAccountRedirect('ar', '/ar/account/orders?page=2')).toBe(
+      '/ar/account/orders?page=2',
+    );
   });
 
   it('rejects an absolute URL to an external host', () => {

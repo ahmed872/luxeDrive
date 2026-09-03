@@ -85,7 +85,9 @@ export function RegisterForm({ locale, labels }: { locale: Locale; labels: Regis
           defaultValue={values.email}
           required
           disabled={isPending}
-          aria-invalid={state.error === 'validation' || state.error === 'email_taken' ? true : undefined}
+          aria-invalid={
+            state.error === 'validation' || state.error === 'email_taken' ? true : undefined
+          }
           aria-describedby={state.error === 'email_taken' ? errorId : undefined}
         />
       </div>

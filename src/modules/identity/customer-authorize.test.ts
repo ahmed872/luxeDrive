@@ -25,14 +25,17 @@ const { requireCustomerUser, getOptionalCustomerUser } = await import('./authori
 function mockCustomerSession(
   user: { id: string; email: string; name: string | null; role: string } | null,
 ) {
-  customerAuthMock.mockResolvedValue(
-    user ? { user, expires: '2099-01-01T00:00:00.000Z' } : null,
-  );
+  customerAuthMock.mockResolvedValue(user ? { user, expires: '2099-01-01T00:00:00.000Z' } : null);
 }
 
 describe('requireCustomerUser', () => {
   it('returns the authenticated customer for a valid session', async () => {
-    mockCustomerSession({ id: 'c1', email: 'shopper@example.com', name: 'Shopper', role: 'CUSTOMER' });
+    mockCustomerSession({
+      id: 'c1',
+      email: 'shopper@example.com',
+      name: 'Shopper',
+      role: 'CUSTOMER',
+    });
     await expect(requireCustomerUser()).resolves.toMatchObject({ id: 'c1', role: 'CUSTOMER' });
   });
 

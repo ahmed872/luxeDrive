@@ -143,7 +143,11 @@ describe('verifyAdminCredentials', () => {
  */
 describe('verifyCustomerCredentials', () => {
   it('accepts a matching password for an active customer', async () => {
-    await createUser({ email: 'shopper@example.com', password: 'correct-horse-9', role: 'CUSTOMER' });
+    await createUser({
+      email: 'shopper@example.com',
+      password: 'correct-horse-9',
+      role: 'CUSTOMER',
+    });
     expect(await verifyCustomerCredentials('shopper@example.com', 'correct-horse-9')).toMatchObject(
       { ok: true },
     );
@@ -157,7 +161,11 @@ describe('verifyCustomerCredentials', () => {
   });
 
   it('rejects a wrong password', async () => {
-    await createUser({ email: 'shopper@example.com', password: 'correct-horse-9', role: 'CUSTOMER' });
+    await createUser({
+      email: 'shopper@example.com',
+      password: 'correct-horse-9',
+      role: 'CUSTOMER',
+    });
     expect(await verifyCustomerCredentials('shopper@example.com', 'wrong-password-99')).toEqual({
       ok: false,
       reason: 'WRONG_PASSWORD',
@@ -187,7 +195,11 @@ describe('verifyCustomerCredentials', () => {
 
   for (const role of ['MANAGER', 'STAFF'] as const) {
     it(`rejects a ${role} account the same way`, async () => {
-      await createUser({ email: `${role.toLowerCase()}@example.com`, password: 'correct-horse-9', role });
+      await createUser({
+        email: `${role.toLowerCase()}@example.com`,
+        password: 'correct-horse-9',
+        role,
+      });
       expect(
         await verifyCustomerCredentials(`${role.toLowerCase()}@example.com`, 'correct-horse-9'),
       ).toEqual({ ok: false, reason: 'NOT_CUSTOMER' });

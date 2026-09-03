@@ -56,7 +56,10 @@ const { resolveOrderAccess, rememberGuestOrder, guestTokenFor, ORDER_ACCESS_COOK
 function signInAs(userId: string | null, role: Role = 'CUSTOMER'): void {
   customerAuthMock.mockResolvedValue(
     userId
-      ? { user: { id: userId, email: `${userId}@example.com`, name: null, role }, expires: '2099-01-01T00:00:00.000Z' }
+      ? {
+          user: { id: userId, email: `${userId}@example.com`, name: null, role },
+          expires: '2099-01-01T00:00:00.000Z',
+        }
       : null,
   );
 }
@@ -76,9 +79,18 @@ let fixtureCounter = 0;
 async function shoes() {
   fixtureCounter += 1;
   const suffix = fixtureCounter;
-  const category = await createCategory({ slug: `shoes-${suffix}`, nameAr: 'أحذية', nameEn: 'Shoes' });
+  const category = await createCategory({
+    slug: `shoes-${suffix}`,
+    nameAr: 'أحذية',
+    nameEn: 'Shoes',
+  });
   const product = await createProduct({
-    product: { slug: `runner-${suffix}`, nameAr: 'حذاء', nameEn: 'Runner', categoryId: category.id },
+    product: {
+      slug: `runner-${suffix}`,
+      nameAr: 'حذاء',
+      nameEn: 'Runner',
+      categoryId: category.id,
+    },
     variants: [{ sku: `RUN-${suffix}`, priceMinor: 45_000, stockQuantity: 10 }],
   });
   await publishProduct(product.id);

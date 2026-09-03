@@ -5,11 +5,7 @@ import { AuthError, CredentialsSignin } from 'next-auth';
 import { z } from 'zod';
 
 import { isAppError, toAppError } from '@/modules/core';
-import {
-  customerSignIn,
-  customerSignOut,
-  customerPasswordPolicySchema,
-} from '@/modules/identity';
+import { customerSignIn, customerSignOut, customerPasswordPolicySchema } from '@/modules/identity';
 import {
   registerCustomer,
   updateCustomerProfile,
@@ -118,10 +114,7 @@ const registerSchema = z
   });
 
 export type RegisterErrorReason =
-  | 'validation'
-  | 'email_taken'
-  | 'passwords_do_not_match'
-  | 'generic';
+  'validation' | 'email_taken' | 'passwords_do_not_match' | 'generic';
 
 export interface CustomerRegisterState {
   error: RegisterErrorReason | null;
@@ -245,11 +238,7 @@ const resetPasswordSchema = z
   });
 
 export type ResetPasswordErrorReason =
-  | 'validation'
-  | 'passwords_do_not_match'
-  | 'invalid'
-  | 'expired'
-  | 'used';
+  'validation' | 'passwords_do_not_match' | 'invalid' | 'expired' | 'used';
 
 export interface ResetPasswordState {
   done: boolean;
@@ -330,7 +319,10 @@ export async function updateProfileAction(
     const appError = toAppError(error);
     if (!isAppError(error)) console.error('updateProfileAction failed', appError.code);
     const t = getDictionary(locale).account;
-    return { ok: false, error: appError.code === 'UNAUTHENTICATED' ? t.sessionExpired : t.profileError };
+    return {
+      ok: false,
+      error: appError.code === 'UNAUTHENTICATED' ? t.sessionExpired : t.profileError,
+    };
   }
 }
 

@@ -710,7 +710,8 @@ export const dictionary = {
       verifyEmailSuccessTitle: 'Your email is verified',
       verifyEmailSuccessBody: 'Thanks for confirming your email address.',
       verifyEmailErrorInvalid: 'This verification link is not valid.',
-      verifyEmailErrorExpired: 'This verification link has expired. Request a new one from your account.',
+      verifyEmailErrorExpired:
+        'This verification link has expired. Request a new one from your account.',
       verifyEmailErrorUsed: 'This verification link was already used.',
       verifyEmailPendingNotice: 'Your email address is not verified yet.',
       resendVerification: 'Resend verification link',
