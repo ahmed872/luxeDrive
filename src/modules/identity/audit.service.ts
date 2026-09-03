@@ -68,7 +68,20 @@ export type AuditAction =
   | 'order.fulfillment_changed'
   // P11. A null actor here is the normal case, not a gap: the mover is a
   // verified provider event, and a provider is not a user.
-  | 'order.payment_changed';
+  | 'order.payment_changed'
+  // P12 — storefront customer identity, kept in its own vocabulary rather
+  // than reusing `auth.login.*`/`auth.logout`: those are the admin
+  // surface's events, and conflating the two would make "who signed in"
+  // ambiguous between two completely separate authentication systems.
+  | 'customer.registered'
+  | 'customer.login.success'
+  | 'customer.login.failure'
+  | 'customer.logout'
+  | 'customer.profile_updated'
+  | 'customer.email_verification_requested'
+  | 'customer.email_verified'
+  | 'customer.password_reset_requested'
+  | 'customer.password_reset_completed';
 
 /** Every entity type an audit event can be about — `entityType` is a plain
  * string column at the DB level (no enum constraint), but a fixed union

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { hashPassword, validatePasswordPolicy, verifyPassword } from './password';
+import {
+  hashPassword,
+  validateCustomerPasswordPolicy,
+  validatePasswordPolicy,
+  verifyPassword,
+} from './password';
 
 describe('hashPassword / verifyPassword', () => {
   it('verifies the correct password against its own hash', async () => {
@@ -49,5 +54,35 @@ describe('validatePasswordPolicy', () => {
 
   it('rejects a password with no letter', () => {
     expect(validatePasswordPolicy('123456789012')).toMatch(/letter/);
+  });
+});
+
+/** The storefront's shorter, 8-character floor (P12 §4) — same
+ * letter-and-number shape, deliberately less strict than the 12-character
+ * admin policy above because a customer account carries no
+ * store-operating privilege. */
+describe('validateCustomerPasswordPolicy', () => {
+  it('accepts an 8-character password meeting the policy', () => {
+    expect(validateCustomerPasswordPolicy('abcdefg1')).toBeNull();
+  });
+
+  it('rejects a password shorter than 8 characters, even with a letter and a number', () => {
+    expect(validateCustomerPasswordPolicy('abc123')).toMatch(/8/);
+  });
+
+  it('rejects a password with no number', () => {
+    expect(validateCustomerPasswordPolicy('nodigitshere')).toMatch(/number/);
+  });
+
+  it('rejects a password with no letter', () => {
+    expect(validateCustomerPasswordPolicy('12345678')).toMatch(/letter/);
+  });
+
+  it('does not accept a password that only meets the shorter customer floor as an admin password', () => {
+    // The two policies are independent schemas, not one relaxed into the
+    // other — an 8-character password that passes the customer policy must
+    // still fail the stricter 12-character admin one.
+    expect(validateCustomerPasswordPolicy('abcdefg1')).toBeNull();
+    expect(validatePasswordPolicy('abcdefg1')).not.toBeNull();
   });
 });

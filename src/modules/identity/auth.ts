@@ -7,6 +7,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { serverEnv } from '@/modules/core';
 
 import { recordAuditEvent } from './audit.service';
+import { getClientIp } from './request-ip';
 import { ROLE_PERMISSIONS, isAdminRole } from './permissions';
 import { getLoginRateLimiter } from './rate-limiter';
 import {
@@ -30,12 +31,6 @@ import { getUserById, touchLastLogin, verifyAdminCredentials } from './user.serv
  * only provider is Credentials, so there is no OAuth account-linking or
  * verification-token flow an Adapter would otherwise justify.
  */
-
-function getClientIp(request: Request): string | null {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) return forwardedFor.split(',')[0]?.trim() ?? null;
-  return request.headers.get('x-real-ip');
-}
 
 /** Never let a raw user-supplied email reach the audit log unnormalized —
  * this is for internal diagnostics only, never shown to the caller. */

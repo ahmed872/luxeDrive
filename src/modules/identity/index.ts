@@ -15,9 +15,19 @@
 export { handlers, auth, signIn, signOut } from './auth';
 
 export {
+  customerHandlers,
+  customerAuth,
+  customerSignIn,
+  customerSignOut,
+  CUSTOMER_SESSION_TTL_MS,
+} from './customer-auth';
+
+export {
   requireUser,
   requirePermission,
   getOptionalUser,
+  requireCustomerUser,
+  getOptionalCustomerUser,
   type AuthenticatedUser,
 } from './authorize';
 
@@ -35,6 +45,8 @@ export {
   verifyPassword,
   validatePasswordPolicy,
   passwordPolicySchema,
+  validateCustomerPasswordPolicy,
+  customerPasswordPolicySchema,
 } from './password';
 
 export {
@@ -45,8 +57,10 @@ export {
   setUserActive,
   setUserRole,
   verifyAdminCredentials,
+  verifyCustomerCredentials,
   type CreateUserInput,
   type VerifyCredentialsResult,
+  type VerifyCustomerCredentialsResult,
 } from './user.service';
 
 export {

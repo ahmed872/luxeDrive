@@ -117,3 +117,34 @@ export async function verifyAdminCredentials(
 export async function touchLastLogin(id: string): Promise<void> {
   await db.user.update({ where: { id }, data: { lastLoginAt: new Date() } });
 }
+
+export type VerifyCustomerFailureReason =
+  'NOT_FOUND' | 'NO_PASSWORD' | 'WRONG_PASSWORD' | 'DISABLED' | 'NOT_CUSTOMER';
+
+export type VerifyCustomerCredentialsResult =
+  | { ok: true; user: User }
+  | { ok: false; reason: VerifyCustomerFailureReason };
+
+/**
+ * The storefront twin of `verifyAdminCredentials` (P12 §5): same shape,
+ * same generic-failure discipline, but the role gate runs the other way —
+ * an admin account, even with a correct password, is not a storefront
+ * credential. `NOT_CUSTOMER` covers it, and like `NOT_ADMIN` above, only
+ * ever reaches an audit log, never the caller.
+ */
+export async function verifyCustomerCredentials(
+  email: string,
+  password: string,
+): Promise<VerifyCustomerCredentialsResult> {
+  const user = await getUserByEmail(email);
+  if (!user) return { ok: false, reason: 'NOT_FOUND' };
+  if (!user.passwordHash) return { ok: false, reason: 'NO_PASSWORD' };
+
+  const valid = await verifyPassword(password, user.passwordHash);
+  if (!valid) return { ok: false, reason: 'WRONG_PASSWORD' };
+
+  if (!user.active) return { ok: false, reason: 'DISABLED' };
+  if (user.role !== 'CUSTOMER') return { ok: false, reason: 'NOT_CUSTOMER' };
+
+  return { ok: true, user };
+}

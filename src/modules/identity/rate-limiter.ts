@@ -92,3 +92,28 @@ export function getLoginRateLimiter(): InMemoryRateLimiter {
 export function resetLoginRateLimiter(): void {
   loginLimiter?.reset();
 }
+
+let customerLoginLimiter: InMemoryRateLimiter | undefined;
+
+/**
+ * The storefront's own login limiter (P12 §5) — a separate instance, not a
+ * shared one, so a burst of admin sign-ins and a burst of customer sign-ins
+ * never share a budget or a `reset()` call meant for the other surface. Same
+ * policy, same (ip, email) key shape: the two surfaces can still authenticate
+ * against the same underlying account (one `User` row, one `email`, one
+ * password), so guessing against either login form is the same attack and
+ * deserves the same throttle.
+ *
+ * Same documented gap as the admin limiter: in-memory and per-process, so a
+ * multi-instance deployment needs a shared store (Redis/Upstash) behind this
+ * same `RateLimiter` interface before it protects more than one instance.
+ */
+export function getCustomerLoginRateLimiter(): InMemoryRateLimiter {
+  if (!customerLoginLimiter) customerLoginLimiter = new InMemoryRateLimiter(LOGIN_RATE_LIMIT);
+  return customerLoginLimiter;
+}
+
+/** Test-only. */
+export function resetCustomerLoginRateLimiter(): void {
+  customerLoginLimiter?.reset();
+}

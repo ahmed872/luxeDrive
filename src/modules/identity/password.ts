@@ -64,3 +64,24 @@ export function validatePasswordPolicy(password: string): string | null {
   if (result.success) return null;
   return result.error.issues[0]?.message ?? 'Invalid password';
 }
+
+/**
+ * The storefront policy (P12 §4): 8+ characters, same letter-and-number
+ * shape, same NIST 800-63B length-first reasoning as the admin policy above
+ * — but 8 rather than 12, because a customer account carries no
+ * store-operating privilege. Hashing and verification are policy-agnostic
+ * (`hashPassword`/`verifyPassword` above) and are reused as-is; only the
+ * acceptable-shape rule differs by audience.
+ */
+export const customerPasswordPolicySchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password is too long')
+  .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+  .regex(/[0-9]/, 'Password must contain at least one number');
+
+export function validateCustomerPasswordPolicy(password: string): string | null {
+  const result = customerPasswordPolicySchema.safeParse(password);
+  if (result.success) return null;
+  return result.error.issues[0]?.message ?? 'Invalid password';
+}

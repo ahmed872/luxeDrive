@@ -32,6 +32,12 @@ export interface CreateSessionInput {
   userId: string;
   ip?: string | null;
   userAgent?: string | null;
+  /** Defaults to `SESSION_TTL_MS` (the admin shift length). The storefront
+   * customer auth passes its own, much longer TTL (P12 §6) — a shopper
+   * expects "stay signed in," an admin's 12-hour shift session does not.
+   * One function, one revocation mechanism, two honestly different
+   * lifetimes for two different audiences. */
+  ttlMs?: number;
 }
 
 export interface DbSessionResult {
@@ -47,7 +53,7 @@ function hashToken(rawToken: string): string {
 
 export async function createDbSession(input: CreateSessionInput): Promise<DbSessionResult> {
   const token = randomBytes(32).toString('base64url');
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  const expiresAt = new Date(Date.now() + (input.ttlMs ?? SESSION_TTL_MS));
 
   await db.session.create({
     data: {

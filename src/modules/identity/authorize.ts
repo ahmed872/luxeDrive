@@ -5,6 +5,7 @@ import type { Role } from '@generated/prisma';
 import { AppError } from '@/modules/core';
 
 import { auth } from './auth';
+import { customerAuth } from './customer-auth';
 import { type Permission, roleHasPermission } from './permissions';
 
 /**
@@ -62,6 +63,40 @@ export async function requirePermission(permission: Permission): Promise<Authent
 export async function getOptionalUser(): Promise<AuthenticatedUser | null> {
   try {
     return await requireUser();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The storefront twin of `requireUser`/`getOptionalUser`, backed by
+ * `customerAuth()` — a completely separate Auth.js instance reading a
+ * completely separate cookie (see `customer-auth.ts`). This module cannot
+ * also resolve the `Customer` row a signed-in user owns: `customers`
+ * depends on `identity`, not the other way around, so doing that here would
+ * be a dependency cycle. `src/lib/customers/customer-identity.ts` is where
+ * the two are composed, the same way `cart-identity.ts` already composes
+ * a session identity with `resolveCustomerForUser`.
+ */
+export async function requireCustomerUser(): Promise<AuthenticatedUser> {
+  const session = await customerAuth();
+  const user = session?.user;
+
+  if (!user?.id || user.role !== 'CUSTOMER') {
+    throw new AppError('UNAUTHENTICATED');
+  }
+
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    name: user.name ?? null,
+    role: user.role,
+  };
+}
+
+export async function getOptionalCustomerUser(): Promise<AuthenticatedUser | null> {
+  try {
+    return await requireCustomerUser();
   } catch {
     return null;
   }
