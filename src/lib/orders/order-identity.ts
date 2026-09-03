@@ -2,8 +2,7 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 
-import { getOptionalUser } from '@/modules/identity';
-import { findCustomerForUser } from '@/modules/customers';
+import { getOptionalCustomerAccount } from '@/lib/customers/customer-identity';
 import { getOrderByAccessToken, getOrderForCustomer, type OrderView } from '@/modules/orders';
 
 /**
@@ -107,14 +106,11 @@ export interface OrderAccess {
  * order numbers are real.
  */
 export async function resolveOrderAccess(number: string): Promise<OrderAccess | null> {
-  const user = await getOptionalUser();
+  const account = await getOptionalCustomerAccount();
 
-  if (user) {
-    const customer = await findCustomerForUser(user.id);
-    if (customer) {
-      const order = await getOrderForCustomer(number, customer.id);
-      if (order) return { order, via: 'customer' };
-    }
+  if (account) {
+    const order = await getOrderForCustomer(number, account.customerId);
+    if (order) return { order, via: 'customer' };
   }
 
   // Falls through for a signed-in customer too: someone who checked out as a

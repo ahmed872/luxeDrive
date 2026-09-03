@@ -2,8 +2,7 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 
-import { getOptionalUser } from '@/modules/identity';
-import { resolveCustomerForUser } from '@/modules/customers';
+import { getOptionalCustomerAccount } from '@/lib/customers/customer-identity';
 import { mergeGuestCartIntoCustomer, newGuestToken, type CartOwner } from '@/modules/cart';
 
 /**
@@ -40,10 +39,9 @@ function cookieOptions() {
  * for someone who is only looking.
  */
 export async function resolveCartOwnerForRead(): Promise<CartOwner> {
-  const user = await getOptionalUser();
-  if (user) {
-    const customer = await resolveCustomerForUser(user.id);
-    return { customerId: customer.id, guestToken: null };
+  const account = await getOptionalCustomerAccount();
+  if (account) {
+    return { customerId: account.customerId, guestToken: null };
   }
 
   const token = (await cookies()).get(CART_COOKIE_NAME)?.value ?? null;
@@ -63,18 +61,17 @@ export async function resolveCartOwnerForRead(): Promise<CartOwner> {
  */
 export async function resolveCartOwnerForWrite(): Promise<CartOwner> {
   const store = await cookies();
-  const user = await getOptionalUser();
+  const account = await getOptionalCustomerAccount();
 
-  if (user) {
-    const customer = await resolveCustomerForUser(user.id);
+  if (account) {
     const guestToken = store.get(CART_COOKIE_NAME)?.value;
 
     if (guestToken) {
-      await mergeGuestCartIntoCustomer({ guestToken, customerId: customer.id });
+      await mergeGuestCartIntoCustomer({ guestToken, customerId: account.customerId });
       store.delete(CART_COOKIE_NAME);
     }
 
-    return { customerId: customer.id, guestToken: null };
+    return { customerId: account.customerId, guestToken: null };
   }
 
   const existing = store.get(CART_COOKIE_NAME)?.value;

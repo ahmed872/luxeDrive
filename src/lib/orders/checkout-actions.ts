@@ -4,12 +4,11 @@ import { revalidatePath } from 'next/cache';
 
 import { isAppError, toAppError } from '@/modules/core';
 import { placeOrder, type PlaceOrderInput } from '@/modules/orders';
-import { getOptionalUser } from '@/modules/identity';
-import { findCustomerForUser } from '@/modules/customers';
 import type { Locale } from '@/lib/i18n/locales';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import type { ActionResult } from '@/lib/admin/action-result';
 import { resolveCartOwnerForWrite } from '@/lib/cart/cart-identity';
+import { getOptionalCustomerAccount } from '@/lib/customers/customer-identity';
 
 import { rememberGuestOrder } from './order-identity';
 
@@ -72,8 +71,7 @@ export async function placeOrderAction(
     // pages are left alone — stock changed, but availability is resolved at
     // request time, and blanket revalidation would throw away P05's ISR.
     revalidatePath(`/${locale}/cart`);
-    const user = await getOptionalUser();
-    if (user && (await findCustomerForUser(user.id))) {
+    if (await getOptionalCustomerAccount()) {
       revalidatePath(`/${locale}/account/orders`);
     }
 

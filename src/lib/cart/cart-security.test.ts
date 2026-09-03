@@ -22,8 +22,11 @@ import { resetCartTables } from '@/modules/cart/testing';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 
+// `cart-identity.ts` derives a signed-in shopper from the storefront's own
+// customer session (`customerAuth`, a separate Auth.js instance from the
+// admin `auth` — P12 §6), so that is the function this file mocks.
 const authMock = vi.fn();
-vi.mock('@/modules/identity/auth', () => ({ auth: authMock }));
+vi.mock('@/modules/identity/customer-auth', () => ({ customerAuth: authMock }));
 
 /** A mutable stand-in for the request's cookie jar. */
 const cookieJar = new Map<string, string>();
