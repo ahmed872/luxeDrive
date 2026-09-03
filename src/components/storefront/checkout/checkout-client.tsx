@@ -34,6 +34,10 @@ import { Textarea } from '@/components/ui/textarea';
 interface CheckoutClientProps {
   cart: CartView;
   locale: Locale;
+  /** A signed-in customer's own details, used only to start the form
+   * pre-filled — every field stays editable and the server never trusts
+   * what this form submits for identity (P10 §5, P12 §26). */
+  prefill?: { email: string; fullName: string; phone: string };
 }
 
 type FieldName =
@@ -61,11 +65,20 @@ const EMPTY_FORM = {
   note: '',
 };
 
-export function CheckoutClient({ cart, locale }: CheckoutClientProps) {
+export function CheckoutClient({ cart, locale, prefill }: CheckoutClientProps) {
   const t = getDictionary(locale).checkout;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState(() =>
+    prefill
+      ? {
+          ...EMPTY_FORM,
+          email: prefill.email,
+          fullName: prefill.fullName,
+          phone: prefill.phone,
+        }
+      : EMPTY_FORM,
+  );
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
