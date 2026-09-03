@@ -24,6 +24,12 @@ import { z } from 'zod';
  */
 const storageProviderSchema = z.enum(['local', 's3']);
 
+/** Which payment adapter runs. `none` is a real, supported configuration and
+ * the default: an environment with no provider credentials still boots, and
+ * checkout says payment is unavailable rather than offering a button that
+ * cannot work (P11 §5). */
+const paymentProviderSchema = z.enum(['none', 'hosted_checkout']);
+
 const baseServerEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
@@ -61,6 +67,20 @@ const baseServerEnvSchema = z.object({
    * automatically by Auth.js under this exact name. */
   AUTH_TRUST_HOST: z.enum(['true', 'false']).optional(),
 
+  /** P11. Which payment adapter to run; `none` disables payment entirely. */
+  PAYMENT_PROVIDER: paymentProviderSchema.default('none'),
+  /** Base URL of the provider's API. Required when a provider is enabled.
+   * Not a secret, but environment-specific — sandbox and live differ. */
+  PAYMENT_API_BASE_URL: z.string().url().optional(),
+  /** Secret. Bearer credential for the provider's API. Never logged, never
+   * sent to the browser, never stored on a `Payment` row. */
+  PAYMENT_API_KEY: z.string().min(1).optional(),
+  /** Secret. HMAC key the provider signs its webhooks with. This is the only
+   * thing standing between the payment domain and anyone who can POST to the
+   * webhook URL, so it is required whenever a provider is enabled — there is
+   * no "verification off" mode. Generate with `openssl rand -hex 32`. */
+  PAYMENT_WEBHOOK_SECRET: z.string().min(32).optional(),
+
   /** Script-only (`scripts/create-admin.mts`) — never read by the running
    * app, so a missing value here never breaks a normal boot. Deliberately
    * outside this schema's enforcement: requiring it at all times would mean
@@ -80,6 +100,24 @@ export const serverEnvSchema = baseServerEnvSchema.superRefine((value, ctx) => {
           code: 'custom',
           path: [key],
           message: `${key} is required when STORAGE_PROVIDER=s3`,
+        });
+      }
+    }
+  }
+  if (value.PAYMENT_PROVIDER !== 'none') {
+    // A provider that is switched on without its credentials is worse than
+    // one that is off: the store would offer a pay button that fails after
+    // the customer commits. Refusing to boot says so at deploy time instead.
+    for (const key of [
+      'PAYMENT_API_BASE_URL',
+      'PAYMENT_API_KEY',
+      'PAYMENT_WEBHOOK_SECRET',
+    ] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required when PAYMENT_PROVIDER is not "none"`,
         });
       }
     }

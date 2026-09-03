@@ -57,10 +57,33 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'pnpm dev',
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: 'pnpm dev',
+      url: 'http://127.0.0.1:3000',
+      reuseExistingServer: !process.env.CI,
+      // 60s was enough until the app grew: on a cold `.next/dev` and the
+      // slow filesystem this sandbox warns about, Turbopack's first compile
+      // now runs past a minute and Playwright gave up before the server was
+      // ready — a boot that was still working, reported as a failure.
+      timeout: 180_000,
+    },
+    /**
+     * The payment provider (P11).
+     *
+     * A stand-in for the vendor, not for us: it speaks the hosted-checkout
+     * contract, hosts a payment page, and signs its webhooks with the real
+     * `PAYMENT_WEBHOOK_SECRET` using the real HMAC construction. The
+     * application verifies those deliveries with its own production code and
+     * refuses the ones that do not verify. Point `PAYMENT_API_BASE_URL` at a
+     * vendor sandbox and the same specs exercise the same paths — what is
+     * unavailable in this environment is a vendor account, not the logic.
+     */
+    {
+      command: 'pnpm payments:stub',
+      url: 'http://127.0.0.1:4011/__test/health',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+  ],
 });

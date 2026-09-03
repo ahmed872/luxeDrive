@@ -33,9 +33,17 @@ try {
     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
   `;
 
+  // `finished_at IS NOT NULL` matters: Postgres sorts NULL first in a DESC
+  // order, so a migration attempt that started and failed before completing
+  // — which leaves a row with no `finished_at` — would otherwise outrank
+  // every migration that actually succeeded, no matter how long ago the
+  // failed attempt was. Found by exactly that: a P10-era failed attempt
+  // still sitting in this table made this check report a stale migration
+  // name while the real latest one (P11's) had, in fact, applied.
   const migrations = await prisma.$queryRaw`
     SELECT migration_name, finished_at
     FROM _prisma_migrations
+    WHERE finished_at IS NOT NULL
     ORDER BY finished_at DESC
     LIMIT 1
   `;
