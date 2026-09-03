@@ -5,6 +5,8 @@ import { CheckCircle2 } from 'lucide-react';
 
 import { isLocale, type Locale } from '@/lib/i18n/locales';
 import { getDictionary } from '@/lib/i18n/dictionary';
+import { assessPayable } from '@/modules/orders';
+import { isPaymentEnabled } from '@/modules/payments';
 import { resolveOrderAccess } from '@/lib/orders/order-identity';
 import { OrderDetail, formatOrderDate } from '@/components/storefront/orders/order-detail';
 import { Alert } from '@/components/ui/alert';
@@ -48,6 +50,10 @@ export default async function OrderSuccessPage({
   if (!access) notFound();
 
   const { order, via } = access;
+  const tp = getDictionary(locale).payment;
+  // Whether to offer payment is the server's call, from the stored order and
+  // the deployment's configuration — never from how the visitor arrived.
+  const payable = assessPayable(order).payable && isPaymentEnabled();
 
   return (
     <div className="container mx-auto flex flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -79,12 +85,31 @@ export default async function OrderSuccessPage({
         {via === 'guest-token' ? <span className="mt-1 block">{t.saveLinkNotice}</span> : null}
       </Alert>
 
+      {/* The payment call to action, when there is money still to collect.
+          Deliberately after the confirmation and before the line items: the
+          order exists either way, and this page's first job is to say so
+          (P11 §20). */}
+      {payable ? (
+        <Alert variant="warning" title={tp.pendingBadge}>
+          <span className="mt-2 block">
+            <Button asChild size="sm">
+              <Link href={`/${locale}/order/${order.number}/payment`}>{tp.payNow}</Link>
+            </Button>
+          </span>
+        </Alert>
+      ) : null}
+
       <OrderDetail order={order} locale={locale} />
 
       <div className="flex flex-wrap gap-3">
         <Button asChild variant="outline">
           <Link href={`/${locale}`}>{getDictionary(locale).cart.continueShopping}</Link>
         </Button>
+        {payable ? (
+          <Button asChild variant="ghost">
+            <Link href={`/${locale}/order/${order.number}/payment`}>{tp.title}</Link>
+          </Button>
+        ) : null}
         {via === 'customer' ? (
           <Button asChild variant="ghost">
             <Link href={`/${locale}/account/orders`}>{t.myOrders}</Link>

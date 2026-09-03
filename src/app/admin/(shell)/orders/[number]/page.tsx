@@ -4,6 +4,9 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 
 import { getOrderForAdmin } from '@/modules/orders';
+import { isPaymentEnabled, listAttemptsForOrder } from '@/modules/payments';
+import { paymentAttemptLabel, paymentAttemptTone } from '@/lib/payments/payment-labels';
+import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/modules/core';
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, isLocale } from '@/lib/i18n/locales';
 import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
@@ -52,6 +55,10 @@ export default async function AdminOrderDetailPage({
 
   const order = await getOrderForAdmin(number);
   if (!order) notFound();
+
+  // Bounded by `listAttemptsForOrder`'s own `take`; one query, no N+1 —
+  // the attempts are read once here, not per row (P11 §31).
+  const attempts = await listAttemptsForOrder(order.id);
 
   const money = (minor: number) => formatMoney(minor, { currency: order.currency, locale });
   const address = order.shippingAddress;
@@ -196,6 +203,83 @@ export default async function AdminOrderDetailPage({
                   for a "mark as paid" button and not find one (P10 §11). */}
               <Alert variant="info" title={to.paymentBoundaryTitle}>
                 {to.paymentBoundaryBody}
+              </Alert>
+            </CardContent>
+          </Card>
+
+          {/* Payment, read-only. There is no control here that moves money:
+              a payment becomes PAID from a verified provider event and from
+              nothing else, and a refund is an operation against the provider
+              that this phase does not perform (P11 §21/§22). */}
+          <Card>
+            <CardHeader>
+              <CardTitle as="h2">{to.paymentTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {!isPaymentEnabled() ? (
+                <p className="text-small text-(--color-text-muted)">{to.paymentDisabled}</p>
+              ) : null}
+
+              {attempts.length === 0 ? (
+                <p className="text-small text-(--color-text-muted)">{to.paymentNoAttempts}</p>
+              ) : (
+                <ol className="flex flex-col gap-4">
+                  {attempts.map((attempt) => (
+                    <li
+                      key={attempt.id}
+                      className="flex flex-col gap-1.5 border-b border-(--color-border) pb-4 last:border-0 last:pb-0"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Badge variant={paymentAttemptTone(attempt.status)}>
+                          {paymentAttemptLabel(attempt.status, locale)}
+                        </Badge>
+                        <span className="tabular-nums text-small text-(--color-text)">
+                          {money(attempt.amountMinor)}
+                        </span>
+                      </div>
+                      <dl className="flex flex-col gap-1 text-caption text-(--color-text-muted)">
+                        <div className="flex justify-between gap-3">
+                          <dt>{to.paymentProvider}</dt>
+                          <dd dir="ltr">{attempt.provider}</dd>
+                        </div>
+                        {attempt.providerReference ? (
+                          <div className="flex min-w-0 justify-between gap-3">
+                            <dt className="flex-none">{to.paymentReference}</dt>
+                            {/* A Latin identifier: forced LTR so its
+                                segments read in issue order inside an
+                                Arabic page. Truncated, not wrapped, so a
+                                long reference cannot widen the column. */}
+                            <dd className="truncate font-mono" dir="ltr">
+                              {attempt.providerReference}
+                            </dd>
+                          </div>
+                        ) : null}
+                        <div className="flex justify-between gap-3">
+                          <dt>{to.paymentCreated}</dt>
+                          <dd>{formatAdminDate(attempt.createdAt, locale)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <dt>{to.paymentUpdated}</dt>
+                          <dd>{formatAdminDate(attempt.updatedAt, locale)}</dd>
+                        </div>
+                        {attempt.failureCode ? (
+                          <div className="flex justify-between gap-3">
+                            <dt>{to.paymentFailure}</dt>
+                            {/* The provider's own decline code. Never a
+                                secret, never a raw payload. */}
+                            <dd className="text-(--color-error)" dir="ltr">
+                              {attempt.failureCode}
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <Alert variant="info" title={to.paymentBoundaryRefundTitle}>
+                {to.paymentBoundaryRefundBody}
               </Alert>
             </CardContent>
           </Card>
