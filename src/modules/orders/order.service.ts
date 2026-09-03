@@ -32,6 +32,7 @@ import {
   placeOrderInputSchema,
   type PlaceOrderInput,
 } from './checkout-schemas';
+import { closeLiveAttemptForOrderWithin } from './payment-flow.service';
 
 /**
  * Turning a cart into an order.
@@ -642,6 +643,11 @@ export async function cancelOrder(
         restoredQuantity += item.quantity;
       }
     }
+
+    // P11: a provider session must not outlive the order it was paying for.
+    // Idempotent and quiet — an attempt that already settled is left alone,
+    // because cancelling an order cannot un-take money that arrived.
+    await closeLiveAttemptForOrderWithin(tx, orderId);
 
     const order = await tx.order.update({
       where: { id: orderId },

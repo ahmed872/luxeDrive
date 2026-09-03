@@ -65,7 +65,10 @@ export type AuditAction =
   | 'order.created'
   | 'order.status_changed'
   | 'order.cancelled'
-  | 'order.fulfillment_changed';
+  | 'order.fulfillment_changed'
+  // P11. A null actor here is the normal case, not a gap: the mover is a
+  // verified provider event, and a provider is not a user.
+  | 'order.payment_changed';
 
 /** Every entity type an audit event can be about — `entityType` is a plain
  * string column at the DB level (no enum constraint), but a fixed union

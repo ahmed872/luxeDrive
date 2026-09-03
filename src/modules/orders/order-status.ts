@@ -39,15 +39,23 @@ export const ORDER_STATUS_TRANSITIONS: Readonly<Record<OrderStatus, readonly Ord
 };
 
 /**
- * P10 only ever writes UNPAID: there is no payment provider yet, so nothing
- * legitimately moves the money forward. The rest of the map is the contract
- * P11's webhooks will use, written now so the handler has something to
- * satisfy rather than a shape to invent.
+ * The order's money state — a roll-up across every payment attempt, which is
+ * a different question from what happened to one session (that is
+ * `payments/payment-status.ts`).
+ *
+ * P10 only ever wrote UNPAID. As of P11 every move out of it is driven by a
+ * verified provider event or by an attempt ending from our side; no route,
+ * action or button writes this column directly.
  */
 export const PAYMENT_STATUS_TRANSITIONS: Readonly<Record<PaymentStatus, readonly PaymentStatus[]>> =
   {
     UNPAID: ['PENDING', 'PAID', 'FAILED'],
-    PENDING: ['PAID', 'FAILED'],
+    // UNPAID is reachable again from PENDING, added in P11: a customer who
+    // opens a provider session and then closes the tab leaves the order with
+    // an open PENDING it will never resolve. The session expires or is
+    // cancelled, and the order has to become payable again — going to FAILED
+    // instead would record a decline that never happened.
+    PENDING: ['PAID', 'FAILED', 'UNPAID'],
     PAID: ['REFUNDED', 'PARTIALLY_REFUNDED'],
     FAILED: ['PENDING', 'UNPAID'],
     PARTIALLY_REFUNDED: ['REFUNDED'],

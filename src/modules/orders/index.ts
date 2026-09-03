@@ -71,3 +71,23 @@ export {
   type PlaceOrderInput,
   type ShippingAddress,
 } from './checkout-schemas';
+
+// P11 — the order↔payment seam. Exported from `orders`, not `payments`,
+// because the dependency only runs this way: orders may call payments, never
+// the reverse.
+export {
+  applyVerifiedEvent,
+  assessPayable,
+  closeLiveAttemptForOrderWithin,
+  recordRejectedDelivery,
+  startPaymentForOrder,
+  syncAttemptFromProvider,
+} from './payment-flow.service';
+
+export type {
+  PayableCheck,
+  PayableOrderFacts,
+  StartPaymentInput,
+  StartPaymentResult,
+  WebhookApplication,
+} from './payment-flow.service';
