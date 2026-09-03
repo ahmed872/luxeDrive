@@ -102,11 +102,42 @@ enum OrderSource {
   ADMIN
 }
 
+/// Which adapter handled a payment. P11 ships one implementation —
+/// HOSTED_CHECKOUT, a provider-agnostic redirect/hosted-page contract driven
+/// entirely by environment configuration. The named vendors are the extension
+/// points: adding one means writing a file that implements `PaymentProvider`
+/// and adding its value here, with no change to the order domain.
 enum PaymentProvider {
   MANUAL
+  HOSTED_CHECKOUT
   PAYMOB
   TAP
   STRIPE
+}
+
+/// The lifecycle of ONE payment attempt — deliberately not `PaymentStatus`.
+///
+/// `Order.paymentStatus` answers "has this order been paid", which is a
+/// roll-up across every attempt. This answers "what happened to this
+/// session", which is a different question: an order can hold a FAILED
+/// attempt and a SUCCEEDED one at once, and UNPAID is meaningless for a row
+/// that exists precisely because someone tried (P11 §3).
+///
+/// CREATED       a provider session exists; the customer has not acted
+/// REQUIRES_ACTION the provider needs the customer (3-D Secure, OTP)
+/// PENDING       the provider has it and the outcome is not yet known
+/// SUCCEEDED     verified server-side. Never set from a browser redirect.
+/// FAILED        the provider declined it
+/// CANCELLED     the customer or the store abandoned it
+/// EXPIRED       the session outlived its window without an outcome
+enum PaymentAttemptStatus {
+  CREATED
+  REQUIRES_ACTION
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
 }
 
 /// UNPAID is the resting state of an order nobody has tried to pay yet — the
@@ -840,24 +871,59 @@ model OrderEvent {
 // payments
 // ---------------------------------------------------------------------------
 
+/// ONE payment attempt against one order (P11 §17).
+///
+/// An order holds a list of these, never a single mutable row: a declined
+/// attempt followed by a successful retry has to leave both facts standing,
+/// and overwriting the first destroys the audit trail the store needs when a
+/// customer says they were charged twice.
+///
+/// Amount and currency are copied from the order at creation and are the
+/// values sent to the provider. They are never read from a request body —
+/// see `payment-flow.service.ts` (P11 §7).
 model Payment {
-  id                String          @id @default(uuid()) @db.Uuid
-  orderId           String          @map("order_id") @db.Uuid
+  id                String               @id @default(uuid()) @db.Uuid
+  orderId           String               @map("order_id") @db.Uuid
   provider          PaymentProvider
-  providerReference String?         @map("provider_reference")
-  status            PaymentStatus   @default(PENDING)
-  amountMinor       Int             @map("amount_minor")
-  currency          String          @default("SAR")
-  /// Raw provider payload, kept for reconciliation and dispute handling.
-  rawPayload        Json?           @map("raw_payload")
-  paidAt            DateTime?       @map("paid_at")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  /// The provider's own id for this session/intent. Not an authorization
+  /// credential: knowing it proves nothing and grants nothing — every read
+  /// path resolves the order first and checks ownership (P11 §9).
+  providerReference String?              @map("provider_reference")
+  status            PaymentAttemptStatus @default(CREATED)
+  amountMinor       Int                  @map("amount_minor")
+  currency          String               @default("SAR")
+  /// Server-generated, unique. Two concurrent "start payment" clicks collide
+  /// here in the database rather than racing past an application check —
+  /// the same mechanism P10 used for checkout (P11 §8).
+  idempotencyKey    String               @unique @map("idempotency_key")
+  /// Where to send the customer. Provider-issued; never a store URL.
+  checkoutUrl       String?              @map("checkout_url")
+  /// Provider's own decline code and message, kept for support and
+  /// reconciliation. Never a secret, never a raw payload.
+  failureCode       String?              @map("failure_code")
+  failureMessage    String?              @map("failure_message")
+  /// A redacted projection of the provider payload — allowlisted keys only
+  /// (`redactProviderPayload`). The raw body is never stored: it can carry a
+  /// cardholder name, a full PAN echo, or an auth token (P11 §2).
+  providerMetadata  Json?                @map("provider_metadata")
+  /// When the provider session stops being usable. Drives EXPIRED.
+  expiresAt         DateTime?            @map("expires_at")
+  /// Monotonic guard against out-of-order webhook delivery: an event older
+  /// than the one already applied is ignored rather than allowed to regress
+  /// the attempt (P11 §12).
+  lastEventAt       DateTime?            @map("last_event_at")
+  paidAt            DateTime?            @map("paid_at")
+  failedAt          DateTime?            @map("failed_at")
+  cancelledAt       DateTime?            @map("cancelled_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  webhookEvents WebhookEvent[]
 
   @@unique([provider, providerReference])
-  @@index([orderId])
+  @@index([orderId, createdAt])
+  @@index([status])
   @@map("payments")
 }
 
@@ -882,16 +948,31 @@ model Shipment {
 model WebhookEvent {
   id              String        @id @default(uuid()) @db.Uuid
   provider        String
+  /// The provider's event id. The unique constraint below is the whole
+  /// deduplication mechanism: a redelivery — a second, a third, or one that
+  /// arrives concurrently — loses the insert and is ignored (P11 §11).
   externalEventId String        @map("external_event_id")
+  /// The provider's event name, kept so a rejected or unhandled event can be
+  /// explained without re-reading the payload.
+  eventType       String?       @map("event_type")
   status          WebhookStatus @default(RECEIVED)
+  /// Whether the signature verified. A row is written for rejected
+  /// deliveries too — an attacker probing the endpoint is worth seeing —
+  /// but a rejected event never touches a payment.
+  signatureValid  Boolean       @default(false) @map("signature_valid")
+  paymentId       String?       @map("payment_id") @db.Uuid
+  /// Redacted, like `Payment.providerMetadata`: allowlisted keys only.
   payload         Json
   attempts        Int           @default(0)
   error           String?
   createdAt       DateTime      @default(now()) @map("created_at")
   processedAt     DateTime?     @map("processed_at")
 
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
   @@unique([provider, externalEventId])
   @@index([status])
+  @@index([paymentId, createdAt])
   @@map("webhook_events")
 }
 
