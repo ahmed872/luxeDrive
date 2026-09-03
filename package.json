@@ -34,6 +34,7 @@
     "db:create-admin": "NODE_OPTIONS=--conditions=react-server tsx scripts/create-admin.mts",
     "db:seed-e2e-admins": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-admins.mts",
     "db:seed-e2e-orders": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-orders-fixture.mts",
+    "db:seed-e2e-account": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-account-fixture.mts",
     "payments:stub": "node scripts/payment-provider-stub.mjs"
   },
   "dependencies": {
