@@ -105,7 +105,12 @@ test('the critical customer journey: register, profile, guest-cart merge, checko
   await profileForm.locator('input[name="name"]').fill('عميل محقق');
   await profileForm.locator('input[name="phone"]').fill('0559876543');
   await profileForm.locator('button[type="submit"]').click();
-  await expect(page.getByText('تم تحديث ملفك الشخصي')).toBeVisible({ timeout: 15_000 });
+  // `exact` matters: the toast renders its title twice — the visible one,
+  // and Radix's screen-reader announcement ("Notification …"), which a
+  // substring match also picks up.
+  await expect(page.getByText('تم تحديث ملفك الشخصي', { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(profileForm.locator('input[name="name"]')).toHaveValue('عميل محقق');
 
   // And it is really persisted, not merely echoed back into the form.
