@@ -17,6 +17,8 @@ const validServer = {
   MEDIA_UPLOAD_SIGNING_SECRET: 'a'.repeat(32),
   // Required unconditionally (P06) — Auth.js session signing.
   AUTH_SECRET: 'b'.repeat(32),
+  // Required unconditionally (P13) — protects the outbox dispatch endpoint.
+  EMAIL_DISPATCH_SECRET: 'c'.repeat(32),
 };
 
 describe('parseServerEnv', () => {
@@ -30,11 +32,8 @@ describe('parseServerEnv', () => {
   });
 
   it('defaults NODE_ENV to development', () => {
-    const result = parseServerEnv({
-      DATABASE_URL: validServer.DATABASE_URL,
-      MEDIA_UPLOAD_SIGNING_SECRET: validServer.MEDIA_UPLOAD_SIGNING_SECRET,
-      AUTH_SECRET: validServer.AUTH_SECRET,
-    });
+    const { NODE_ENV: _omit, ...rest } = validServer;
+    const result = parseServerEnv(rest);
     expect(result.success && result.data.NODE_ENV).toBe('development');
   });
 
@@ -106,6 +105,76 @@ describe('parseServerEnv — authentication (P06)', () => {
   it('accepts an optional AUTH_TRUST_HOST of "true" or "false" only', () => {
     expect(parseServerEnv({ ...validServer, AUTH_TRUST_HOST: 'true' }).success).toBe(true);
     expect(parseServerEnv({ ...validServer, AUTH_TRUST_HOST: 'yes' }).success).toBe(false);
+  });
+});
+
+describe('parseServerEnv — email (P13)', () => {
+  it('defaults EMAIL_PROVIDER to console', () => {
+    const result = parseServerEnv(validServer);
+    expect(result.success && result.data.EMAIL_PROVIDER).toBe('console');
+  });
+
+  it('rejects a missing EMAIL_DISPATCH_SECRET, naming the variable — required unconditionally', () => {
+    const { EMAIL_DISPATCH_SECRET: _omit, ...rest } = validServer;
+    const result = parseServerEnv(rest);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.message).toContain('EMAIL_DISPATCH_SECRET');
+  });
+
+  it('rejects an EMAIL_DISPATCH_SECRET shorter than 32 characters', () => {
+    const result = parseServerEnv({ ...validServer, EMAIL_DISPATCH_SECRET: 'too-short' });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts EMAIL_PROVIDER=console with nothing else set', () => {
+    const result = parseServerEnv({ ...validServer, EMAIL_PROVIDER: 'console' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts EMAIL_PROVIDER=test with nothing else set', () => {
+    const result = parseServerEnv({ ...validServer, EMAIL_PROVIDER: 'test' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects EMAIL_PROVIDER=smtp missing its required fields, naming every missing one', () => {
+    const result = parseServerEnv({ ...validServer, EMAIL_PROVIDER: 'smtp' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.message).toContain('EMAIL_SMTP_HOST');
+      expect(result.message).toContain('EMAIL_SMTP_PORT');
+      expect(result.message).toContain('EMAIL_FROM');
+    }
+  });
+
+  it('accepts EMAIL_PROVIDER=smtp once host/port/from are present — auth is optional', () => {
+    const result = parseServerEnv({
+      ...validServer,
+      EMAIL_PROVIDER: 'smtp',
+      EMAIL_SMTP_HOST: 'smtp.example.com',
+      EMAIL_SMTP_PORT: '587',
+      EMAIL_FROM: 'no-reply@example.com',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a username with no matching password (or vice versa) — not a valid "unauthenticated relay" configuration', () => {
+    const base = {
+      ...validServer,
+      EMAIL_PROVIDER: 'smtp' as const,
+      EMAIL_SMTP_HOST: 'smtp.example.com',
+      EMAIL_SMTP_PORT: '587',
+      EMAIL_FROM: 'no-reply@example.com',
+    };
+    expect(parseServerEnv({ ...base, EMAIL_SMTP_USER: 'user' }).success).toBe(false);
+    expect(parseServerEnv({ ...base, EMAIL_SMTP_PASSWORD: 'pw' }).success).toBe(false);
+    expect(
+      parseServerEnv({ ...base, EMAIL_SMTP_USER: 'user', EMAIL_SMTP_PASSWORD: 'pw' }).success,
+    ).toBe(true);
+  });
+
+  it('rejects an EMAIL_FROM that is not an email address', () => {
+    const result = parseServerEnv({ ...validServer, EMAIL_FROM: 'not-an-email' });
+    expect(result.success).toBe(false);
   });
 });
 

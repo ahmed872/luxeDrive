@@ -170,6 +170,17 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': 'off' },
   },
 
+  // P13's design-token rule exemption: an email's HTML is rendered by a
+  // recipient's mail client, which never loads this app's `globals.css` —
+  // `var(--color-brand)` would simply fail to resolve there, unlike in a
+  // browser rendering this app's own pages. Literal, inlined hex values are
+  // not a style lapse in `templates.ts`; they are the only thing email HTML
+  // actually supports.
+  {
+    files: ['src/modules/notifications/templates.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
+  },
+
   {
     files: ['**/*.test.ts', '**/*.test.tsx', 'vitest.config.mts'],
     rules: { 'no-restricted-imports': 'off', 'boundaries/element-types': 'off' },

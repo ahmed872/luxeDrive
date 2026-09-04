@@ -30,6 +30,30 @@ const storageProviderSchema = z.enum(['local', 's3']);
  * cannot work (P11 §5). */
 const paymentProviderSchema = z.enum(['none', 'hosted_checkout']);
 
+/**
+ * Which email adapter the outbox dispatcher sends through (P13 §1/§2).
+ *
+ *   console  the default. Real, working, and safe with zero configuration —
+ *            an outbox event still gets claimed and marked `SENT`, but
+ *            delivery is a single sanitized log line (no link, no token),
+ *            the same honest "provider is off" stance `PAYMENT_PROVIDER:
+ *            none` already takes. Nobody's inbox is reached; nothing is
+ *            faked.
+ *   smtp     the real provider — any SMTP-speaking transactional service
+ *            (Postmark, SES, Mailgun, Resend, a self-hosted relay, …) or a
+ *            vendor's own SMTP endpoint. SMTP is an IETF standard
+ *            (RFC 5321), not one vendor's private API, which is why this is
+ *            the adapter that gets built out rather than a guessed vendor
+ *            HTTP contract — see `smtp-provider.ts`'s own comment. Requires
+ *            the `EMAIL_SMTP_*` block below; environment-blocked wherever
+ *            those are unset (true of every environment this project has
+ *            touched so far — no SMTP credentials exist anywhere in this
+ *            repository's history).
+ *   test     the deterministic adapter `email-dispatcher.test.ts` and the
+ *            E2E specs drive directly — never selected outside `.env.test`.
+ */
+const emailProviderSchema = z.enum(['console', 'smtp', 'test']);
+
 const baseServerEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
@@ -81,6 +105,50 @@ const baseServerEnvSchema = z.object({
    * no "verification off" mode. Generate with `openssl rand -hex 32`. */
   PAYMENT_WEBHOOK_SECRET: z.string().min(32).optional(),
 
+  /** P13. Which email adapter the outbox dispatcher uses. Defaults to the
+   * always-available, zero-config `console` adapter — see
+   * `emailProviderSchema` above for what each value means. */
+  EMAIL_PROVIDER: emailProviderSchema.default('console'),
+  /** The `From` address every outgoing email carries. Not a secret, but a
+   * real, deliverable address — most providers reject sends from a domain
+   * they have not verified, so this is required the moment a real adapter
+   * (`smtp`) is selected, not merely a cosmetic default. */
+  EMAIL_FROM: z.string().email().optional(),
+  /** Display name paired with `EMAIL_FROM` ("LuxeDrive <no-reply@…>").
+   * Cosmetic only; falls back to "LuxeDrive" when unset. */
+  EMAIL_FROM_NAME: z.string().min(1).optional(),
+
+  /** `smtp` adapter only. Not a secret — sandbox and live differ, and this
+   * is the provider's hostname, not a credential. */
+  EMAIL_SMTP_HOST: z.string().min(1).optional(),
+  /** `smtp` adapter only. Standard ports: 587 (STARTTLS, the common case),
+   * 465 (implicit TLS), 25 (unencrypted — refused by `smtp-provider.ts`
+   * outside explicit opt-in, since a password would otherwise cross the
+   * network in the clear). */
+  EMAIL_SMTP_PORT: z.coerce.number().int().positive().optional(),
+  /** `smtp` adapter only. Not a secret by itself (often just an address or
+   * account id), but paired with the password below to authenticate. */
+  EMAIL_SMTP_USER: z.string().min(1).optional(),
+  /** Secret. `smtp` adapter only. Never logged, never sent to the browser,
+   * never stored on an `OutboxEvent` row. */
+  EMAIL_SMTP_PASSWORD: z.string().min(1).optional(),
+
+  /** `test` adapter only. Where each attempted send is written as one JSON
+   * file, so a Playwright spec — a separate process from the dev server —
+   * can read what the app just "sent" and extract a verification/reset
+   * link from it. Never read outside `EMAIL_PROVIDER=test`; never a path a
+   * production deploy's `EMAIL_PROVIDER` (`console`/`smtp`) touches. */
+  EMAIL_TEST_INBOX_DIR: z.string().min(1).default('.local-storage/test-email-inbox'),
+
+  /** Secret. Bearer credential the outbox dispatch endpoint requires
+   * (`Authorization: Bearer <value>`) — see
+   * `src/app/api/internal/email-dispatch/route.ts`. Required unconditionally
+   * (not just when a real provider is configured): the endpoint is real
+   * infrastructure the moment it exists, whatever adapter is behind it, and
+   * an unauthenticated dispatch trigger is a spam primitive regardless of
+   * where the mail actually goes. Generate with `openssl rand -hex 32`. */
+  EMAIL_DISPATCH_SECRET: z.string().min(32, 'EMAIL_DISPATCH_SECRET must be at least 32 characters'),
+
   /** Script-only (`scripts/create-admin.mts`) — never read by the running
    * app, so a missing value here never breaks a normal boot. Deliberately
    * outside this schema's enforcement: requiring it at all times would mean
@@ -128,6 +196,30 @@ export const serverEnvSchema = baseServerEnvSchema.superRefine((value, ctx) => {
       path: ['MEDIA_UPLOAD_SIGNING_SECRET'],
       message: 'MEDIA_UPLOAD_SIGNING_SECRET is required when STORAGE_PROVIDER=local (the default)',
     });
+  }
+  if (value.EMAIL_PROVIDER === 'smtp') {
+    // Same reasoning as payments above: an adapter switched on without its
+    // credentials would claim delivery while every send silently fails.
+    for (const key of ['EMAIL_SMTP_HOST', 'EMAIL_SMTP_PORT', 'EMAIL_FROM'] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required when EMAIL_PROVIDER=smtp`,
+        });
+      }
+    }
+    // Authentication is a pair, not two independent optionals — a host with
+    // a username and no password (or vice versa) is a configuration typo,
+    // not a legitimate "unauthenticated relay" setup, which this schema
+    // does not try to distinguish from one.
+    if (Boolean(value.EMAIL_SMTP_USER) !== Boolean(value.EMAIL_SMTP_PASSWORD)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_SMTP_PASSWORD'],
+        message: 'EMAIL_SMTP_USER and EMAIL_SMTP_PASSWORD must both be set, or neither',
+      });
+    }
   }
 });
 

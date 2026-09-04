@@ -206,6 +206,13 @@ enum WebhookStatus {
 
 enum OutboxStatus {
   PENDING
+  /// P13: a worker has claimed this row and is actively attempting delivery.
+  /// The claim itself is the atomic transition PENDING -> SENDING (only one
+  /// concurrent `UPDATE ... WHERE status = 'PENDING'` can win it) — see
+  /// `src/lib/notifications/email-dispatcher.ts`. A row never lingers here
+  /// under normal operation: it always leaves for PENDING (retry), SENT, or
+  /// FAILED within the same request that claimed it.
+  SENDING
   SENT
   FAILED
 }
@@ -1031,6 +1038,17 @@ model WebhookEvent {
 
 /// Written inside the business transaction, delivered after it commits, so a
 /// notification is never sent for work that rolled back (ADR-013).
+///
+/// P13 is the first real consumer: `email-dispatcher.ts` claims `PENDING`
+/// rows whose `type` it knows how to handle (`customer.email_verification_
+/// requested`, `customer.password_reset_requested`) via an atomic
+/// `UPDATE ... WHERE status = 'PENDING'`, attempts delivery, and transitions
+/// to `SENT`, back to `PENDING` with `attempts`/`nextAttemptAt` advanced (a
+/// transient failure, retried with backoff), or to `FAILED` (permanent, or
+/// the retry budget is spent). Every other `type` already written by P10/P11
+/// (`order.*`, `payment.*`) is left untouched — the dispatcher's claim query
+/// filters by type, so those rows simply wait for whichever later phase
+/// implements their delivery.
 model OutboxEvent {
   id            String       @id @default(uuid()) @db.Uuid
   type          String

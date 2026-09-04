@@ -74,10 +74,12 @@ appear to pass while proving nothing.
 | `AUTH_TRUST_HOST`                                                    | no     | server only                | P06   |
 | `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (script-only)    | yes    | `create-admin` script only | P06   |
 | `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`                          | yes    | server only                | P11   |
-| `EMAIL_API_KEY`                                                      | yes    | server only                | P11   |
-
-The P11 ones are documented in `.env.example` but not in the schema yet:
-requiring a variable no code reads would fail every build for nothing.
+| `EMAIL_PROVIDER`                                                     | no     | server only                | P13   |
+| `EMAIL_DISPATCH_SECRET`                                              | yes    | server only                | P13   |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME`                                      | no     | server only                | P13   |
+| `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER` (smtp)       | no     | server only                | P13   |
+| `EMAIL_SMTP_PASSWORD` (smtp)                                         | yes    | server only                | P13   |
+| `EMAIL_TEST_INBOX_DIR` (test provider)                               | no     | server only (`.env.test`)  | P13   |
 
 ### Media storage (P04)
 
@@ -110,6 +112,31 @@ app, never written to the database or logged anywhere. The script refuses
 to run without both set; there is no default admin account and no
 credential anywhere in source control, seed data, or the UI (the legacy
 `admin`/`admin123` account was removed in P00 and never comes back).
+
+### Email delivery (P13)
+
+`EMAIL_PROVIDER` picks the backend behind the one `EmailProviderAdapter`
+interface in `src/modules/notifications` — `console` (the default) needs
+nothing at all and is a real, honest "not configured yet" stance identical
+to `PAYMENT_PROVIDER="none"`: the outbox still gets drained and every event
+still gets marked delivered, but "delivery" is a sanitized log line, not a
+reached inbox. `smtp` is the real adapter (any SMTP-speaking transactional
+service, or a self-hosted relay) and requires `EMAIL_SMTP_HOST`/
+`EMAIL_SMTP_PORT`/`EMAIL_FROM` at minimum. `test` is the deterministic
+adapter the test suite drives directly — set only in `.env.test`.
+
+`EMAIL_DISPATCH_SECRET` is required unconditionally, the same way
+`AUTH_SECRET` is: `POST /api/internal/email-dispatch` is real
+spam-sending infrastructure the moment it exists, regardless of which
+adapter is configured behind it, so the endpoint refuses every request
+without a matching `Authorization: Bearer` value. A scheduler (Vercel Cron,
+any external cron hitting the URL) is expected to call it periodically;
+see `vercel.json` for the schedule this deployment uses.
+
+`EMAIL_TEST_INBOX_DIR` is read only by the `test` adapter, and only exists
+so a Playwright spec — a separate OS process from the running dev server —
+can read what the app just attempted to send and pull a verification/reset
+link out of it. Nothing under `console` or `smtp` ever writes there.
 
 ## Local setup
 
@@ -150,3 +177,15 @@ Development). Nothing is read from a committed file.
 Preview deployments must point at a database that is not production. A preview
 branch running migrations against live data is the same incident as running
 them by hand.
+
+- `EMAIL_PROVIDER`/`EMAIL_DISPATCH_SECRET`/`EMAIL_FROM`/`EMAIL_SMTP_*` — set
+  per environment like every other secret above. A Preview deployment left
+  on `EMAIL_PROVIDER="console"` is a legitimate, honest choice (verification
+  and reset links are logged, not delivered) rather than a broken one; only
+  Production needs `smtp` actually configured.
+- `vercel.json`'s `crons` entry calls `GET /api/internal/email-dispatch` on
+  a schedule; Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
+  automatically for routes defined there, so the Vercel project's
+  `CRON_SECRET` variable must be set to the *same* value as
+  `EMAIL_DISPATCH_SECRET` — there is no separate mechanism, just one shared
+  secret the route checks the same way regardless of who is calling.

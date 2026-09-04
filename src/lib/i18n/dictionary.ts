@@ -378,6 +378,36 @@ export const dictionary = {
       sessionExpired: 'انتهت جلستك. سجّل الدخول مرة أخرى.',
       unauthorized: 'يلزم تسجيل الدخول لعرض هذه الصفحة.',
     },
+
+    // P13 — transactional email copy. Deliberately its own section, not
+    // reused from `account`: an email template has no session, no button
+    // states, no live validation — it is static copy read once, so it gets
+    // its own small, complete set of strings rather than borrowing UI
+    // strings that assume a page around them.
+    email: {
+      brandName: 'LuxeDrive',
+      greeting: 'مرحبًا {name}،',
+      greetingNoName: 'مرحبًا،',
+      fallbackNotice: 'إذا لم يعمل الزر، انسخ الرابط التالي والصقه في متصفحك:',
+      footer: '© {year} LuxeDrive. جميع الحقوق محفوظة.',
+      automatedNotice: 'هذه رسالة آلية، يرجى عدم الرد عليها.',
+
+      verificationSubject: 'تأكيد بريدك الإلكتروني — LuxeDrive',
+      verificationHeading: 'تأكيد بريدك الإلكتروني',
+      verificationBody:
+        'شكرًا لإنشاء حساب في LuxeDrive. لإتمام إعداد حسابك، يرجى تأكيد أن هذا هو بريدك الإلكتروني.',
+      verificationCta: 'تأكيد البريد الإلكتروني',
+      verificationExpiry: 'ينتهي هذا الرابط خلال 24 ساعة.',
+      verificationIgnore: 'إذا لم تُنشئ هذا الحساب، يمكنك تجاهل هذه الرسالة بأمان.',
+
+      passwordResetSubject: 'إعادة تعيين كلمة المرور — LuxeDrive',
+      passwordResetHeading: 'إعادة تعيين كلمة المرور',
+      passwordResetBody: 'وصلنا طلب لإعادة تعيين كلمة مرور حسابك في LuxeDrive.',
+      passwordResetCta: 'إعادة تعيين كلمة المرور',
+      passwordResetExpiry: 'ينتهي هذا الرابط خلال ساعة واحدة.',
+      passwordResetIgnore:
+        'إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان — لن تتغيّر كلمة مرورك.',
+    },
   },
   en: {
     nav: {
@@ -741,6 +771,31 @@ export const dictionary = {
       profileError: 'We could not save your changes. Please try again.',
       sessionExpired: 'Your session has expired. Please sign in again.',
       unauthorized: 'Sign in to view this page.',
+    },
+
+    email: {
+      brandName: 'LuxeDrive',
+      greeting: 'Hi {name},',
+      greetingNoName: 'Hi,',
+      fallbackNotice: "If the button doesn't work, copy and paste this link into your browser:",
+      footer: '© {year} LuxeDrive. All rights reserved.',
+      automatedNotice: 'This is an automated message — please do not reply.',
+
+      verificationSubject: 'Verify your email — LuxeDrive',
+      verificationHeading: 'Verify your email address',
+      verificationBody:
+        'Thanks for creating a LuxeDrive account. To finish setting it up, please confirm this is your email address.',
+      verificationCta: 'Verify email',
+      verificationExpiry: 'This link expires in 24 hours.',
+      verificationIgnore: "If you didn't create this account, you can safely ignore this email.",
+
+      passwordResetSubject: 'Reset your password — LuxeDrive',
+      passwordResetHeading: 'Reset your password',
+      passwordResetBody: 'We received a request to reset the password for your LuxeDrive account.',
+      passwordResetCta: 'Reset password',
+      passwordResetExpiry: 'This link expires in 1 hour.',
+      passwordResetIgnore:
+        "If you didn't request this, you can safely ignore this email — your password will not change.",
     },
   },
 } as const satisfies Record<Locale, unknown>;
