@@ -57,6 +57,36 @@ function inboxDir(): string {
   return path.resolve(process.cwd(), EMAIL_TEST_INBOX_DIR);
 }
 
+/**
+ * Calls the dispatch endpoint repeatedly until `to`'s inbox is non-empty, or
+ * `timeoutMs` elapses — then returns that inbox.
+ *
+ * A single `triggerEmailDispatch` call is not guaranteed to include one
+ * specific address's event: `dispatchPendingEmailEvents` claims up to
+ * `BATCH_SIZE` PENDING rows *across the whole outbox*, oldest
+ * `nextAttemptAt` first, and this suite runs many spec files as well as
+ * this file's own other tests in parallel (`fullyParallel: true`) — every
+ * one of them registering accounts and queuing their own verification
+ * events into that same shared table. A real caller in this position (a
+ * customer whose registration just missed one 5-minute cron tick) simply
+ * sees their email a little later, once a subsequent tick reaches it; this
+ * mirrors that by calling dispatch again rather than assuming the first
+ * call was sufficient. It never weakens what is checked — the message
+ * still has to actually arrive — only how many ticks it is allowed to take.
+ */
+export async function dispatchUntilDelivered(
+  request: import('@playwright/test').APIRequestContext,
+  to: string,
+  timeoutMs = 15_000,
+): Promise<TestInboxMessage[]> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    await triggerEmailDispatch(request);
+    const inbox = await readTestInbox(to, 500);
+    if (inbox.length > 0 || Date.now() > deadline) return inbox;
+  }
+}
+
 /** Every message "sent" to `to` so far, oldest first — polls briefly
  * because the dispatch endpoint's own response only guarantees the outbox
  * transaction committed, and this reads the filesystem write that happens

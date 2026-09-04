@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import { extractLink, readTestInbox, triggerEmailDispatch } from './fixtures/email-inbox';
+import {
+  dispatchUntilDelivered,
+  extractLink,
+  readTestInbox,
+  triggerEmailDispatch,
+} from './fixtures/email-inbox';
 
 /**
  * P13 §16 — the real delivery journeys, driven end to end: a queued outbox
@@ -42,13 +47,12 @@ test.describe('Journey A — email verification', () => {
     await expect(page).toHaveURL(/\/account$/, { timeout: 10_000 });
     await expect(page.getByText('Your email address is not verified yet.')).toBeVisible();
 
-    // 3-4. The verification outbox event exists and the dispatcher sends it.
-    const dispatch = await triggerEmailDispatch(request);
-    expect(dispatch.ok).toBe(true);
-    expect(dispatch.sent).toBeGreaterThanOrEqual(1);
-
-    // 5. Extract the real link from the test provider's inbox.
-    const inbox = await readTestInbox(email);
+    // 3-5. The verification outbox event exists, the dispatcher sends it,
+    // and the real link is extracted from the test provider's inbox. One
+    // dispatch call is not guaranteed to reach this address specifically —
+    // see `dispatchUntilDelivered`'s own comment — so this polls dispatch
+    // ticks the same way a real caller would wait across cron ticks.
+    const inbox = await dispatchUntilDelivered(request, email);
     expect(inbox).toHaveLength(1);
     expect(inbox[0]!.subject).toBe('Verify your email — LuxeDrive');
     const link = extractLink(inbox[0]!, '/account/verify-email');
@@ -113,13 +117,10 @@ test.describe('Journey B — password reset', () => {
     await forgotForm.locator('button[type="submit"]').click();
     await expect(page.getByText('Check your email')).toBeVisible({ timeout: 10_000 });
 
-    // 3-4. The reset outbox event exists and is sent.
-    const dispatch = await triggerEmailDispatch(request);
-    expect(dispatch.ok).toBe(true);
-    expect(dispatch.sent).toBeGreaterThanOrEqual(1);
-
-    // 5. Extract the real reset link.
-    const inbox = await readTestInbox(email);
+    // 3-5. The reset outbox event exists, is sent, and the real reset link
+    // is extracted — see Journey A's identical comment on why this polls
+    // dispatch rather than assuming one call is sufficient.
+    const inbox = await dispatchUntilDelivered(request, email);
     expect(inbox.length).toBeGreaterThanOrEqual(1);
     const resetMessage = inbox.find((m) => m.subject === 'Reset your password — LuxeDrive');
     expect(resetMessage).toBeDefined();
