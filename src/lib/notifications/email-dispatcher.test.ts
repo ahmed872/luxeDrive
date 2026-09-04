@@ -98,6 +98,33 @@ describe('dispatchPendingEmailEvents — happy path', () => {
 });
 
 describe('dispatchPendingEmailEvents — retry and failure', () => {
+  it('actually observes PENDING -> SENDING -> PENDING around a transient failure, not just the two endpoints (P14 §9 Journey C)', async () => {
+    const user = await customer();
+    await queueVerification(user.id);
+
+    let observedSendingMidFlight = false;
+    sendMock.mockImplementation(async () => {
+      // The claim (PENDING -> SENDING) happens before `sendForEvent` is
+      // ever called — reading the row from inside the mocked send proves
+      // the row is genuinely SENDING at the moment a real provider call
+      // would be in flight, not merely inferred from the two states
+      // before and after `dispatchPendingEmailEvents` resolves.
+      const inFlight = await db.outboxEvent.findFirstOrThrow({
+        where: { type: 'customer.email_verification_requested' },
+      });
+      observedSendingMidFlight = inFlight.status === 'SENDING';
+      throw new EmailSendError('transient', 'simulated timeout');
+    });
+
+    await dispatchPendingEmailEvents();
+
+    expect(observedSendingMidFlight).toBe(true);
+    const after = await db.outboxEvent.findFirstOrThrow({
+      where: { type: 'customer.email_verification_requested' },
+    });
+    expect(after.status).toBe('PENDING');
+  });
+
   it('a transient failure goes back to PENDING with attempts advanced and a future nextAttemptAt', async () => {
     const user = await customer();
     await queueVerification(user.id);

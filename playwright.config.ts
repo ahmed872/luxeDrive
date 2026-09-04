@@ -59,14 +59,21 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm dev',
+      // `E2E_PROD_MODE=1` runs the full suite against a real `next build` +
+      // `next start` instead of the dev server (P14 §10) — the strongest
+      // locally-available stand-in for "test the actual deployed
+      // application" when no live Vercel deployment is reachable from this
+      // environment. Off by default: the ordinary dev loop (and CI's own
+      // separate `pnpm build` step) still uses the fast dev server.
+      command: process.env.E2E_PROD_MODE ? 'pnpm build && pnpm start' : 'pnpm dev',
       url: 'http://127.0.0.1:3000',
       reuseExistingServer: !process.env.CI,
       // 60s was enough until the app grew: on a cold `.next/dev` and the
       // slow filesystem this sandbox warns about, Turbopack's first compile
       // now runs past a minute and Playwright gave up before the server was
-      // ready — a boot that was still working, reported as a failure.
-      timeout: 180_000,
+      // ready — a boot that was still working, reported as a failure. A
+      // production build is slower still, so `E2E_PROD_MODE` gets extra room.
+      timeout: process.env.E2E_PROD_MODE ? 300_000 : 180_000,
     },
     /**
      * The payment provider (P11).

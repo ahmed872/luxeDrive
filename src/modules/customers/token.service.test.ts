@@ -199,6 +199,23 @@ describe('requestPasswordReset — no account enumeration (P12 §13/§21)', () =
   });
 });
 
+describe('createPasswordResetToken', () => {
+  it('mints a token row storing only its hash — never the raw value (P14 §8)', async () => {
+    const user = await customer();
+    const before = await db.outboxEvent.count();
+    const { token, expiresAt } = await createPasswordResetToken(user.id);
+
+    expect(token).toHaveLength(43); // 32 random bytes, base64url
+    expect(expiresAt.getTime()).toBeGreaterThan(Date.now());
+
+    const rows = await db.passwordResetToken.findMany({ where: { userId: user.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.tokenHash).not.toBe(token); // only the hash is stored
+    expect(rows[0]!.tokenHash).not.toContain(token);
+    expect(await db.outboxEvent.count()).toBe(before);
+  });
+});
+
 describe('resetPasswordWithToken', () => {
   it('changes the password and revokes every active session for the account', async () => {
     const user = await customer();

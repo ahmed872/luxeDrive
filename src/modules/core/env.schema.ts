@@ -146,8 +146,25 @@ const baseServerEnvSchema = z.object({
    * (not just when a real provider is configured): the endpoint is real
    * infrastructure the moment it exists, whatever adapter is behind it, and
    * an unauthenticated dispatch trigger is a spam primitive regardless of
-   * where the mail actually goes. Generate with `openssl rand -hex 32`. */
-  EMAIL_DISPATCH_SECRET: z.string().min(32, 'EMAIL_DISPATCH_SECRET must be at least 32 characters'),
+   * where the mail actually goes. Generate with `openssl rand -hex 32`.
+   *
+   * Restricted to visible ASCII with no whitespace (P14 §5/§6): this value
+   * is required to round-trip through an HTTP header both as Vercel's own
+   * `CRON_SECRET` (sent as `Authorization: Bearer $CRON_SECRET`) and as
+   * whatever this app compares it against. Vercel's own cron troubleshooting
+   * guide names a stray newline or other header-invalid character pasted
+   * into the secret as a real, observed cause of cron requests silently
+   * losing their Authorization header in production — a failure that would
+   * otherwise surface only as every cron-triggered dispatch returning 401,
+   * discovered after deploying. Rejecting that shape at config-parse time
+   * turns it into a boot-time error instead. */
+  EMAIL_DISPATCH_SECRET: z
+    .string()
+    .min(32, 'EMAIL_DISPATCH_SECRET must be at least 32 characters')
+    .regex(
+      /^[\x21-\x7E]+$/,
+      'EMAIL_DISPATCH_SECRET must contain only visible ASCII characters with no whitespace (it must be safe inside an HTTP Authorization header)',
+    ),
 
   /** Script-only (`scripts/create-admin.mts`) — never read by the running
    * app, so a missing value here never breaks a normal boot. Deliberately

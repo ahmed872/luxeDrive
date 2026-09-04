@@ -184,17 +184,109 @@ them by hand.
   and reset links are logged, not delivered) rather than a broken one; only
   Production needs `smtp` actually configured.
 - `vercel.json`'s `crons` entry calls `GET /api/internal/email-dispatch`
-  every 5 minutes; Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
+  once daily; Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
   automatically for routes defined there, so the Vercel project's
   `CRON_SECRET` variable must be set to the _same_ value as
   `EMAIL_DISPATCH_SECRET` — there is no separate mechanism, just one shared
-  secret the route checks the same way regardless of who is calling. The
-  5-minute cadence is this project's own choice, not a Vercel requirement —
-  Vercel's plan tier can cap how often a cron schedule may fire (this has
-  changed over Vercel's history and is not verified against this specific
-  account), so confirm the account's actual limit before deploying and
-  widen `vercel.json`'s schedule if it is rejected. Nothing about
-  correctness depends on the exact interval: a longer gap only delays how
-  soon a queued email goes out, bounded by the token TTLs the dispatcher
-  already respects (`token.service.ts`'s 1-hour reset / 24-hour
-  verification windows).
+  secret the route checks the same way regardless of who is calling.
+
+  **The once-daily cadence is deliberate, not a placeholder (P14).** Vercel's
+  own documented plan limits (verified directly, not assumed) cap the
+  **Hobby (free) plan at once-per-day minimum cron frequency** — a more
+  frequent schedule is rejected at deploy time on that plan. Only the Pro
+  plan and above support per-minute cron. Once-daily dispatch alone is too
+  slow to be useful: it would leave most password-reset links (a 1-hour
+  token TTL) expiring before a customer ever receives them.
+
+  **The free-tier answer (this project's actual setup):**
+  `.github/workflows/email-dispatch-cron.yml` calls the same endpoint every
+  5 minutes from GitHub Actions instead. This repository is public, so
+  GitHub Actions minutes for it are unlimited and free regardless of
+  schedule frequency — unlike a private repository, where a 5-minute
+  schedule would burn through the free minutes allowance quickly.
+  `vercel.json`'s own once-daily cron entry stays in place as a slow safety
+  net (so the outbox still drains once a day even if the GitHub Actions
+  workflow or its secrets are ever misconfigured); calling the endpoint from
+  both places is harmless since dispatch is idempotent-to-call.
+
+  Setting this up requires two values configured once in this repository's
+  own GitHub settings (Settings → Secrets and variables → Actions) — see
+  the workflow file's own header comment for the exact names. Neither is
+  committed anywhere; the workflow skips itself (rather than failing) until
+  both are set.
+
+  **Upgrading to Vercel Pro later** removes the need for the GitHub Actions
+  workaround: change `vercel.json`'s schedule back to `*/5 * * * *` (or
+  tighter) and either remove the GitHub Actions workflow or leave it running
+  alongside it — both are safe.
+
+## Production configuration checklist (P14)
+
+Every value below is validated at boot by `src/modules/core/env.schema.ts` —
+this list only says which are _required_ for a real production deploy versus
+which have a safe, free, "not configured yet" default. No secret's actual
+value is ever written in this file, in the repository, or in any report
+generated about this project.
+
+**Core — required in every environment:**
+
+- `DATABASE_URL` — production's managed Postgres connection string.
+- `AUTH_SECRET` — signs/encrypts the admin session JWT (Auth.js).
+- `NEXT_PUBLIC_SITE_URL` — the exact production origin; every email link and
+  canonical URL is built from this value, never a request's `Host` header.
+- `STORAGE_PROVIDER` + its pair (`MEDIA_UPLOAD_SIGNING_SECRET` for `local`,
+  or the four `STORAGE_*` values for `s3`) — `local` is a real, free,
+  fully-functional choice; nothing about going to production requires
+  object storage specifically.
+
+**Customer authentication** shares `AUTH_SECRET`'s session-signing
+infrastructure and `DATABASE_URL`; it has no configuration of its own beyond
+those two.
+
+**Email:**
+
+- `EMAIL_PROVIDER` — `console` is a real, free, honest "not sending yet"
+  choice (see below); `smtp` requires the rest of this block.
+- `EMAIL_DISPATCH_SECRET` — required unconditionally, regardless of which
+  provider is selected (protects the dispatch endpoint itself).
+- `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_FROM` — required only when
+  `EMAIL_PROVIDER=smtp`.
+- `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD` — required together, or omit both
+  for an unauthenticated relay.
+- `EMAIL_FROM_NAME` — optional, cosmetic.
+
+**Payments (P11):**
+
+- `PAYMENT_PROVIDER` — `none` is a real, free, fully-supported production
+  configuration: checkout says payment is unavailable instead of offering a
+  button that cannot work. Required (`PAYMENT_API_BASE_URL`,
+  `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`) only once a provider is
+  actually enabled.
+
+### Staying on free infrastructure until this project has a paying client
+
+Every default in this project is chosen so a real production deploy costs
+nothing until a real vendor is actually needed:
+
+- `STORAGE_PROVIDER=local`, `PAYMENT_PROVIDER=none`, and `EMAIL_PROVIDER=console`
+  are each a genuine, working production configuration, not a stub — the
+  application boots and functions completely with none of them costing
+  money. Verification/reset links are logged rather than emailed, payment is
+  visibly unavailable rather than broken, and uploaded media lives on
+  Vercel's own filesystem rather than an object-storage bucket.
+- Vercel itself has a permanent free (Hobby) tier suitable for this project
+  at its current stage; nothing in this codebase requires a paid Vercel plan.
+- A managed Postgres database is the one piece every configuration still
+  needs — several providers (e.g. Neon, Supabase) have a free tier
+  sufficient for early-stage traffic; which one to use is a deployment
+  decision, not something this codebase assumes.
+- The moment `EMAIL_PROVIDER=smtp` is genuinely wanted (real verification/
+  reset emails reaching real inboxes), an SMTP-speaking transactional
+  service is needed — most (Postmark, SES, Mailgun's free tier, …) have a
+  free tier generous enough for early volume; this project's adapter works
+  against any of them unmodified, since it speaks SMTP itself rather than a
+  specific vendor's API.
+- `EMAIL_PROVIDER=smtp` without real credentials is refused at boot
+  (`superRefine` in `env.schema.ts`) rather than silently pretending to
+  work — so there is no way to accidentally deploy a broken email
+  configuration; the failure is loud and immediate.

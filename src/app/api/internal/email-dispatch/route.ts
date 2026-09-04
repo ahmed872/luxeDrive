@@ -11,9 +11,12 @@ import { dispatchPendingEmailEvents } from '@/lib/notifications/email-dispatcher
  * targets Vercel (`docs/environments.md`'s "## Production (Vercel)"), which
  * has no long-running worker process to poll the outbox on its own, so a
  * scheduler calling this route on a cadence is the serverless-appropriate
- * shape: `vercel.json`'s `crons` entry calls it periodically, and Vercel
- * Cron sends `Authorization: Bearer $CRON_SECRET` automatically for routes
- * it invokes — set the Vercel project's `CRON_SECRET` to the same value as
+ * shape: `vercel.json`'s `crons` entry calls it once daily (the fastest
+ * Vercel's free Hobby plan allows — see `docs/environments.md`'s "Email
+ * delivery (P13)" section for why a GitHub Actions workflow, not a tighter
+ * Vercel cron, is this project's real 5-minute cadence), and Vercel Cron
+ * sends `Authorization: Bearer $CRON_SECRET` automatically for routes it
+ * invokes — set the Vercel project's `CRON_SECRET` to the same value as
  * `EMAIL_DISPATCH_SECRET` and that call authenticates the same way any
  * other caller's would.
  *
