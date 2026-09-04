@@ -10,6 +10,16 @@ export const E2E_STAFF = { email: 'e2e-staff@example.com', password: 'E2eStaffPa
 export const E2E_DISABLED = { email: 'e2e-disabled@example.com', password: 'E2eDisabledPass123' };
 
 /**
+ * A MANAGER, for P14's staff-administration boundary.
+ *
+ * MANAGER is the sharpest test of `users.manage`: it holds every other
+ * admin permission there is, so if the Users section were gated on "is this
+ * an admin" rather than on that one permission, this is the account that
+ * would slip through. STAFF failing proves much less.
+ */
+export const E2E_MANAGER = { email: 'e2e-manager@example.com', password: 'E2eManagerPass123' };
+
+/**
  * A second OWNER, for the long acceptance journey.
  *
  * P06's login rate limiter buckets by `ip:email` (10 attempts per 5

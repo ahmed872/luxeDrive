@@ -23,17 +23,23 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
 }
 
 /**
- * The shared placeholder every nav item in `nav-config.ts` currently points
- * at — P06 builds the shell, not Product/Category/Brand/Inventory/Order/
- * Customer/Discount/Content/Analytics/Settings/User management (that's
- * P07+). What this route *does* prove for real: `requirePermission` runs
- * here on every render, regardless of whether the sidebar ever showed a
- * link to this URL — a role without the section's permission gets a
- * server-thrown `FORBIDDEN` before any protected content renders (Next's
- * default error handling takes it from there), exactly like every other
- * admin boundary (P06 §7/§8/§17's "hidden UI is not authorization"). The
- * security test matrix (`Task 22`) calls this exact path directly to
- * verify the throw, not just that the link is hidden.
+ * The shared placeholder for the nav items that have no screen of their
+ * own. A concrete route always wins over this catch-all, so a section
+ * lands here only while it genuinely has nothing built — as of P14 that is
+ * `customers`, `content`, `analytics` and `settings`, each a whole domain
+ * (customer administration, homepage/CMS authoring, reporting, store
+ * configuration) rather than a missing button, and none of them in any
+ * phase's scope so far. It says so plainly instead of showing an empty
+ * table that looks broken, or a fake one that lies.
+ *
+ * What this route proves for real: `requirePermission` runs here on every
+ * render, regardless of whether the sidebar ever showed a link to this URL
+ * — a role without the section's permission gets a server-thrown
+ * `FORBIDDEN` before any protected content renders (Next's default error
+ * handling takes it from there), exactly like every other admin boundary
+ * (P06 §7/§8/§17's "hidden UI is not authorization"). The security test
+ * matrix calls this exact path directly to verify the throw, not just that
+ * the link is hidden.
  */
 export default async function AdminSectionPlaceholderPage({ params }: PageParams) {
   const { section } = await params;

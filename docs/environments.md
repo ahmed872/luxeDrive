@@ -79,7 +79,7 @@ appear to pass while proving nothing.
 | `EMAIL_FROM`, `EMAIL_FROM_NAME`                                      | no     | server only                | P13     |
 | `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER` (smtp)       | no     | server only                | P13     |
 | `EMAIL_SMTP_PASSWORD` (smtp)                                         | yes    | server only                | P13     |
-| `EMAIL_TEST_INBOX_DIR` (test provider)                               | no     | server only (`.env.test`)  | P13     |
+| `EMAIL_TEST_INBOX_DIR` (test provider)                               | no     | server only (test runs)    | P13     |
 
 ### Media storage (P04)
 
@@ -173,6 +173,47 @@ pnpm db:smoke                 # proves the connection and the typed client work
 # 4. First admin account (P06) — one-off, values never committed:
 BOOTSTRAP_ADMIN_EMAIL="owner@example.com" BOOTSTRAP_ADMIN_PASSWORD="a real password, 12+ chars" pnpm db:create-admin
 ```
+
+### Running the test suites (P14)
+
+The defaults above are the right _production_ defaults — payments off, email
+logged rather than sent — and they are deliberately not what the test
+suites need. Both suites drive the real adapters against local stand-ins,
+so a `.env`/`.env.test` copied straight from `.env.example` leaves `pnpm
+test` with 43 failures and the Playwright suite unable to run at all. This
+was not written down anywhere before P14; it is now.
+
+**`.env.test` (unit tests, `pnpm test`)** additionally needs:
+
+```bash
+PAYMENT_PROVIDER="hosted_checkout"
+PAYMENT_API_BASE_URL="http://127.0.0.1:4011"   # scripts/payment-provider-stub.mjs
+PAYMENT_API_KEY="any non-empty value"          # the stub does not check it
+PAYMENT_WEBHOOK_SECRET="…"                     # openssl rand -hex 32
+EMAIL_PROVIDER="test"
+```
+
+Without `PAYMENT_PROVIDER`, the order↔payment tests fail with
+`A payment was requested while PAYMENT_PROVIDER is "none"` — the
+application refusing to start a payment it has no provider for, which is
+correct behaviour, not a bug in those tests.
+
+**`.env` (end-to-end, `pnpm test:e2e`)** needs the same five values. `.env`,
+not `.env.test`: Playwright drives a real `next dev` (or `next build &&
+next start`) server, and that process reads `.env` like any other
+development run — `.env.test` is only ever loaded by Vitest and by
+`prisma.config.ts` under `NODE_ENV=test`. `EMAIL_PROVIDER="test"` is what
+lets a spec read what the app just tried to send out of
+`EMAIL_TEST_INBOX_DIR` and click the real verification link inside it.
+
+`PAYMENT_WEBHOOK_SECRET` must be the _same_ value in `.env` as the payment
+stub sees, since the stub signs its webhooks with it and the application
+verifies them with the real HMAC code — the stub loads `.env` itself
+(`.env.test` under `NODE_ENV=test`), so keeping the two files' payment
+block identical is the simplest way to stay consistent.
+
+The e2e suite also seeds its own fixed accounts; the specs run
+`pnpm db:seed-e2e-admins` themselves, so nothing extra is needed by hand.
 
 ## Production (Vercel)
 

@@ -66,9 +66,27 @@ test.describe('authenticated but unauthorized direct access (permission-aware, s
     const page = await staffContext.newPage();
     const response = await page.goto('/admin/users');
     expect(response?.ok()).toBeFalsy();
-    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole('heading', { name: /^(Users|المستخدمون)$/ })).toHaveCount(0);
+  });
+
+  /**
+   * The one that actually matters for `users.manage` (P14 §B): MANAGER
+   * holds every other admin permission, so a Users section gated on "is
+   * this an admin" instead of on that one permission would let this
+   * account straight in. It gets neither the link nor the page — and the
+   * create form behind it is refused the same way.
+   */
+  test('MANAGER — every other permission, but never Users', async ({ managerContext }) => {
+    const page = await managerContext.newPage();
+    await page.goto('/admin');
+    await expect(page.getByRole('link', { name: /Promotions|العروض والخصومات/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^(Users|المستخدمون)$/ })).toHaveCount(0);
+
+    for (const path of ['/admin/users', '/admin/users/new']) {
+      const response = await page.goto(path);
+      expect(response?.ok()).toBeFalsy();
+      await expect(page.getByRole('button', { name: /Create user|إنشاء المستخدم/ })).toHaveCount(0);
+    }
   });
 
   test('STAFF *can* reach a section their role does hold permission for (Products)', async ({
@@ -86,6 +104,9 @@ test.describe('authenticated but unauthorized direct access (permission-aware, s
   test('OWNER can reach every section, including Users', async ({ ownerContext }) => {
     const page = await ownerContext.newPage();
     await page.goto('/admin/users');
-    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toBeVisible();
+    // Users is a real screen as of P14, not the placeholder it was when
+    // this test was written.
+    await expect(page.getByRole('heading', { name: /^(Users|المستخدمون)$/ })).toBeVisible();
+    await expect(page.getByText('e2e-owner@example.com')).toBeVisible();
   });
 });

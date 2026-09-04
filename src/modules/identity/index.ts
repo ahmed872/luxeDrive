@@ -63,6 +63,19 @@ export {
   type VerifyCustomerCredentialsResult,
 } from './user.service';
 
+/** Staff administration (P14 §B) — the admin screen at `/admin/users`. */
+export {
+  STAFF_ROLES,
+  isStaffRole,
+  listAdminUsers,
+  createStaffUser,
+  setStaffRole,
+  setStaffActive,
+  type StaffRole,
+  type AdminUserListItem,
+  type CreateStaffUserInput,
+} from './user.service';
+
 export {
   recordAuditEvent,
   recordAuditEventWithin,

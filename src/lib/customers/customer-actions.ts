@@ -165,7 +165,6 @@ export async function registerAction(
     };
   }
 
-  let userId: string;
   try {
     const { user } = await registerCustomer({
       email: parsed.data.email,
@@ -177,7 +176,6 @@ export async function registerAction(
       // schema's `AR` default regardless of which locale page they used.
       locale: locale === 'en' ? 'EN' : 'AR',
     });
-    userId = user.id;
     await recordAuditEvent({ action: 'customer.registered', userId: user.id });
     // Queued, not sent from here — P13's dispatcher mints the actual token
     // and delivers it (P12 §12).
@@ -207,7 +205,6 @@ export async function registerAction(
     throw error;
   }
 
-  void userId;
   return { error: null, fieldError: null, values: null };
 }
 

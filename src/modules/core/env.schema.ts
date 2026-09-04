@@ -50,7 +50,12 @@ const paymentProviderSchema = z.enum(['none', 'hosted_checkout']);
  *            touched so far — no SMTP credentials exist anywhere in this
  *            repository's history).
  *   test     the deterministic adapter `email-dispatcher.test.ts` and the
- *            E2E specs drive directly — never selected outside `.env.test`.
+ *            E2E specs drive directly: every attempted send becomes a JSON
+ *            file under `EMAIL_TEST_INBOX_DIR` and reaches nobody. Selected
+ *            from `.env.test`, and from a local `.env` while running the
+ *            Playwright suite (which drives a real server process — see
+ *            docs/environments.md's "Running the test suites"). Never a
+ *            real deployment's value.
  */
 const emailProviderSchema = z.enum(['console', 'smtp', 'test']);
 

@@ -6,15 +6,18 @@ import type { Locale } from '@/lib/i18n/locales';
 import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
 
 /**
- * Every eventual admin area (P07+), each named by the one `Permission` that
- * gates it — this is the "permission-aware navigation" P06 asks for, built
- * against the full permission set from day one so P07 only has to build the
- * pages, never re-derive who may see them. None of these `href`s point at
- * real management UI yet (P06 explicitly excludes that): each renders the
- * shared "coming soon" placeholder at `/admin/[section]`, which itself
- * calls `requirePermission` — the same server check this nav list encodes,
- * so a role that can't see a link server-side can't reach it by typing the
- * URL either (P06 §7/§17).
+ * Every admin area, each named by the one `Permission` that gates it —
+ * this is the "permission-aware navigation" P06 asks for, built against the
+ * full permission set from day one so each later phase only had to build
+ * the pages, never re-derive who may see them.
+ *
+ * Most of these now point at real management screens (P07–P11, and `users`
+ * in P14). The four that do not — `customers`, `content`, `analytics`,
+ * `settings` — fall through to the shared, honest "coming soon" placeholder
+ * at `/admin/[section]`; see that file's own comment for why it stays
+ * rather than being deleted or faked. Either way the URL calls
+ * `requirePermission` itself: a role that can't see a link server-side
+ * can't reach it by typing the URL either (P06 §7/§17).
  */
 export interface AdminSection {
   slug: string;
@@ -36,6 +39,9 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { slug: 'content', permission: 'content.manage', group: 'store' },
   { slug: 'analytics', permission: 'analytics.read', group: 'store' },
   { slug: 'settings', permission: 'settings.manage', group: 'store' },
+  // P14. OWNER-only, and the only section in its group — see
+  // `permissions.ts` for why granting other people access is not a
+  // MANAGER's job.
   { slug: 'users', permission: 'users.manage', group: 'administration' },
 ];
 

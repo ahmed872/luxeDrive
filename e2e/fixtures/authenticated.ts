@@ -1,7 +1,7 @@
 import { test as base } from '@playwright/test';
 import type { Browser, BrowserContext } from '@playwright/test';
 
-import { E2E_OWNER, E2E_STAFF } from './admin-credentials';
+import { E2E_MANAGER, E2E_OWNER, E2E_STAFF } from './admin-credentials';
 
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
 
@@ -53,13 +53,18 @@ async function loginAndCaptureState(
 
 let ownerStatePromise: Promise<StorageState> | undefined;
 let staffStatePromise: Promise<StorageState> | undefined;
+let managerStatePromise: Promise<StorageState> | undefined;
 
 // Playwright's fixture callback is conventionally named `use`, which is
 // also React's hook name — ESLint's `react-hooks` rule (applied globally by
 // `eslint-config-next`) can't tell these apart, so it's renamed here to
 // `provide` purely to avoid a false-positive lint error; it's the exact
 // same Playwright fixture-provider callback either way.
-export const test = base.extend<{ ownerContext: BrowserContext; staffContext: BrowserContext }>({
+export const test = base.extend<{
+  ownerContext: BrowserContext;
+  staffContext: BrowserContext;
+  managerContext: BrowserContext;
+}>({
   ownerContext: async ({ browser }, provide) => {
     ownerStatePromise ??= loginAndCaptureState(browser, E2E_OWNER);
     const context = await browser.newContext({ storageState: await ownerStatePromise });
@@ -70,6 +75,13 @@ export const test = base.extend<{ ownerContext: BrowserContext; staffContext: Br
   staffContext: async ({ browser }, provide) => {
     staffStatePromise ??= loginAndCaptureState(browser, E2E_STAFF);
     const context = await browser.newContext({ storageState: await staffStatePromise });
+    await blockOffOriginRequests(context);
+    await provide(context);
+    await context.close();
+  },
+  managerContext: async ({ browser }, provide) => {
+    managerStatePromise ??= loginAndCaptureState(browser, E2E_MANAGER);
+    const context = await browser.newContext({ storageState: await managerStatePromise });
     await blockOffOriginRequests(context);
     await provide(context);
     await context.close();
