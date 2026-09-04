@@ -69,6 +69,25 @@ Two rules matter more than the rest:
 - **`analytics` never writes.** Reporting that mutates is how numbers stop
   matching reality.
 
+### What each module actually holds today
+
+Every module above owns a real, used implementation, with three exceptions
+worth naming rather than leaving to be discovered:
+
+- **`analytics` is a boundary and nothing else.** It exports nothing. No
+  phase has built reporting, and the module says so in its own `index.ts`
+  rather than shipping a function that returns invented numbers.
+- **`content` and `settings` are read-only.** The storefront reads homepage
+  sections and store settings; nothing writes either through the admin.
+  Their values are set by the seed script or directly in the database.
+- **`search` is Postgres-backed** behind a provider interface, so a real
+  search service can replace it without touching `catalog`.
+
+The four admin sections with no screen (`customers`, `content`, `analytics`,
+`settings`) line up with the first two of those: a permission and a nav
+entry exist, and the URL renders an honest "being built" page that still
+runs the same server-side permission check every real admin route does.
+
 ### Enforcement
 
 The graph is not a diagram anyone has to remember — it is the ESLint config,

@@ -35,3 +35,23 @@ export const E2E_ACCEPTANCE_OWNER = {
   email: 'e2e-acceptance@example.com',
   password: 'E2eAcceptancePass123',
 };
+
+/**
+ * A third OWNER, for staff administration (P14).
+ *
+ * Same reasoning as `E2E_ACCEPTANCE_OWNER` above, one bucket further along.
+ * `e2e-owner`'s (ip, email) budget was already close to spent in a full
+ * parallel run — five sign-in attempts from `admin-auth.spec.ts` plus one
+ * per worker from the shared `ownerContext` fixture, against a limit of ten
+ * per five minutes — so a new spec file leaning on the same account is what
+ * finally pushes it over, and a rate limiter doing its job then reads as an
+ * unrelated accessibility test failing to load a page. Its own account, its
+ * own bucket; the limit itself is a real defence and is not being loosened.
+ *
+ * This account is also what `admin-users-acceptance.spec.ts` asserts the
+ * "(you)" row against, so it must be the one that spec signs in as.
+ */
+export const E2E_USERS_OWNER = {
+  email: 'e2e-users-owner@example.com',
+  password: 'E2eUsersOwnerPass123',
+};

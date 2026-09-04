@@ -57,7 +57,7 @@ describe('dispatchPendingEmailEvents — happy path', () => {
     sendMock.mockResolvedValue({ providerMessageId: 'msg_1' });
 
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0 });
+    expect(summary).toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0, reclaimed: 0 });
     expect(sendMock).toHaveBeenCalledTimes(1);
     expect(sendMock.mock.calls[0]![0]).toMatchObject({ to: user.email, toName: 'Shopper' });
 
@@ -77,7 +77,7 @@ describe('dispatchPendingEmailEvents — happy path', () => {
     sendMock.mockResolvedValue({ providerMessageId: 'msg_2' });
 
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0 });
+    expect(summary).toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0, reclaimed: 0 });
 
     const event = await db.outboxEvent.findFirstOrThrow({
       where: { type: 'customer.password_reset_requested' },
@@ -89,7 +89,7 @@ describe('dispatchPendingEmailEvents — happy path', () => {
   it('never touches an event type it does not own (order.*/payment.*)', async () => {
     await db.outboxEvent.create({ data: { type: 'order.created', payload: {} } });
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0 });
+    expect(summary).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, reclaimed: 0 });
     expect(sendMock).not.toHaveBeenCalled();
 
     const event = await db.outboxEvent.findFirstOrThrow({ where: { type: 'order.created' } });
@@ -132,7 +132,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
 
     const before = Date.now();
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 1, failed: 0 });
+    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 1, failed: 0, reclaimed: 0 });
 
     const event = await db.outboxEvent.findFirstOrThrow({
       where: { type: 'customer.email_verification_requested' },
@@ -154,7 +154,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
     // The backoff window has not elapsed — a second dispatch right away
     // must claim nothing.
     const again = await dispatchPendingEmailEvents();
-    expect(again).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0 });
+    expect(again).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, reclaimed: 0 });
     expect(sendMock).toHaveBeenCalledTimes(1);
   });
 
@@ -171,7 +171,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
     });
 
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0 });
+    expect(summary).toEqual({ claimed: 1, sent: 1, retried: 0, failed: 0, reclaimed: 0 });
     expect(sendMock).toHaveBeenCalledTimes(2);
 
     const event = await db.outboxEvent.findFirstOrThrow({
@@ -186,7 +186,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
     sendMock.mockRejectedValue(new EmailSendError('permanent', 'hard bounce'));
 
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
+    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1, reclaimed: 0 });
 
     const event = await db.outboxEvent.findFirstOrThrow({
       where: { type: 'customer.email_verification_requested' },
@@ -202,7 +202,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
     });
     sendMock.mockClear();
     const again = await dispatchPendingEmailEvents();
-    expect(again).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0 });
+    expect(again).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, reclaimed: 0 });
     expect(sendMock).not.toHaveBeenCalled();
   });
 
@@ -212,7 +212,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
     sendMock.mockRejectedValue(new Error('some unexpected bug'));
 
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 1, failed: 0 });
+    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 1, failed: 0, reclaimed: 0 });
 
     const event = await db.outboxEvent.findFirstOrThrow({
       where: { type: 'customer.email_verification_requested' },
@@ -246,7 +246,7 @@ describe('dispatchPendingEmailEvents — retry and failure', () => {
     });
     expect(event.status).toBe('FAILED');
     expect(event.attempts).toBeLessThanOrEqual(4);
-    expect(lastSummary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
+    expect(lastSummary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1, reclaimed: 0 });
   });
 });
 
@@ -321,14 +321,151 @@ describe('dispatchPendingEmailEvents — payload/user edge cases', () => {
       data: { type: 'customer.email_verification_requested', payload: {} },
     });
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
+    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1, reclaimed: 0 });
     expect(sendMock).not.toHaveBeenCalled();
   });
 
   it('a userId for an account that no longer exists fails permanently', async () => {
     await queueVerification('00000000-0000-4000-8000-000000000000');
     const summary = await dispatchPendingEmailEvents();
-    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1 });
+    expect(summary).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 1, reclaimed: 0 });
     expect(sendMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The lease (P14). The atomic claim stops two *live* workers sending the
+ * same message; it says nothing about a worker that stops being live — and
+ * this dispatcher runs inside serverless invocations, where being killed
+ * mid-send (execution limit, deploy, OOM) is ordinary. Before this, such a
+ * row stayed `SENDING` for good and its verification or reset link was
+ * simply never sent.
+ *
+ * A killed worker is simulated the only honest way available: by leaving a
+ * row exactly as one leaves it — `SENDING`, with its lease stamp in the
+ * past — and then running the dispatcher again.
+ */
+describe('dispatchPendingEmailEvents — a claim is a lease, not a lock', () => {
+  async function abandonedClaim(userId: string, attempts = 0) {
+    return db.outboxEvent.create({
+      data: {
+        type: 'customer.email_verification_requested',
+        payload: { userId },
+        status: 'SENDING',
+        attempts,
+        // The lease this worker held, already expired.
+        nextAttemptAt: new Date(Date.now() - 60_000),
+      },
+    });
+  }
+
+  it('hands back a row whose worker died mid-send, and eventually sends it', async () => {
+    const user = await customer();
+    const abandoned = await abandonedClaim(user.id);
+    sendMock.mockResolvedValue({ providerMessageId: 'msg_reclaimed' });
+
+    const sweep = await dispatchPendingEmailEvents();
+    expect(sweep.reclaimed).toBe(1);
+    // Back to PENDING with its own backoff — not re-sent in the same tick.
+    expect(sweep.sent).toBe(0);
+    const requeued = await db.outboxEvent.findUniqueOrThrow({ where: { id: abandoned.id } });
+    expect(requeued.status).toBe('PENDING');
+    expect(requeued.attempts).toBe(1);
+    expect(requeued.lastError).toContain('claim expired');
+    expect(requeued.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
+
+    // Once the backoff has passed it is an ordinary pending message again.
+    await db.outboxEvent.update({
+      where: { id: abandoned.id },
+      data: { nextAttemptAt: new Date(Date.now() - 1000) },
+    });
+    const second = await dispatchPendingEmailEvents();
+    expect(second.sent).toBe(1);
+    expect((await db.outboxEvent.findUniqueOrThrow({ where: { id: abandoned.id } })).status).toBe(
+      'SENT',
+    );
+  });
+
+  it('leaves a live claim alone — its lease has not expired', async () => {
+    const user = await customer();
+    const inFlight = await db.outboxEvent.create({
+      data: {
+        type: 'customer.email_verification_requested',
+        payload: { userId: user.id },
+        status: 'SENDING',
+        nextAttemptAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const summary = await dispatchPendingEmailEvents();
+    expect(summary).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, reclaimed: 0 });
+    expect(sendMock).not.toHaveBeenCalled();
+    expect((await db.outboxEvent.findUniqueOrThrow({ where: { id: inFlight.id } })).status).toBe(
+      'SENDING',
+    );
+  });
+
+  it('a claim stamps a lease in the future, so the next tick does not steal it', async () => {
+    const user = await customer();
+    const queued = await queueVerification(user.id);
+    let leaseDuringSend: Date | null = null;
+    sendMock.mockImplementation(async () => {
+      const row = await db.outboxEvent.findUniqueOrThrow({ where: { id: queued.id } });
+      leaseDuringSend = row.nextAttemptAt;
+      return { providerMessageId: 'msg_lease' };
+    });
+
+    await dispatchPendingEmailEvents();
+
+    expect(leaseDuringSend).not.toBeNull();
+    expect(new Date(leaseDuringSend!).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('a reclaim costs an attempt, so a send that always kills the worker still gives up', async () => {
+    const user = await customer();
+    // One attempt short of the budget: the next reclaim is the last.
+    const abandoned = await abandonedClaim(user.id, 3);
+
+    const summary = await dispatchPendingEmailEvents();
+    expect(summary.reclaimed).toBe(1);
+
+    const row = await db.outboxEvent.findUniqueOrThrow({ where: { id: abandoned.id } });
+    expect(row.status).toBe('FAILED');
+    expect(row.attempts).toBe(4);
+
+    // Terminal: forcing the stamp into the past must not resurrect it.
+    await db.outboxEvent.update({
+      where: { id: abandoned.id },
+      data: { nextAttemptAt: new Date(Date.now() - 1000) },
+    });
+    const again = await dispatchPendingEmailEvents();
+    expect(again).toEqual({ claimed: 0, sent: 0, retried: 0, failed: 0, reclaimed: 0 });
+  });
+
+  it('never reclaims an event type it does not own', async () => {
+    await db.outboxEvent.create({
+      data: {
+        type: 'order.created',
+        payload: {},
+        status: 'SENDING',
+        nextAttemptAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    const summary = await dispatchPendingEmailEvents();
+    expect(summary.reclaimed).toBe(0);
+    expect(
+      (await db.outboxEvent.findFirstOrThrow({ where: { type: 'order.created' } })).status,
+    ).toBe('SENDING');
+  });
+
+  it('two dispatchers sweeping at once reclaim a row exactly once', async () => {
+    const user = await customer();
+    await abandonedClaim(user.id);
+    sendMock.mockResolvedValue({ providerMessageId: 'msg_race' });
+
+    const [a, b] = await Promise.all([dispatchPendingEmailEvents(), dispatchPendingEmailEvents()]);
+    expect(a.reclaimed + b.reclaimed).toBe(1);
+    expect(await db.outboxEvent.count({ where: { status: 'PENDING' } })).toBe(1);
   });
 });

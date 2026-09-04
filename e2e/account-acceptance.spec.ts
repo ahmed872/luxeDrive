@@ -88,15 +88,30 @@ test('the critical customer journey: register, profile, guest-cart merge, checko
   expect(overviewBody).toMatch(/غير مؤكَّد/);
 
   // 5. Update the profile. The email field is present but read-only.
+  //
+  // The success toast — not the input's own value — is what says the save
+  // finished (P14). `ProfileForm` only raises it once the server action has
+  // actually resolved successfully, whereas the input already holds the
+  // typed text the instant `fill()` returns, so asserting on that proved
+  // nothing and could not fail. It also left this test racing its own
+  // request: the very next step navigates away, which cancels an in-flight
+  // Server Action, and on a slower run the update simply never landed —
+  // silently, because the assertion above it had already passed. Step 7's
+  // pre-fill check was then the thing that failed, several steps from the
+  // cause.
   await page.goto('/ar/account/profile');
   const profileForm = page.locator('main form');
   await expect(page.locator('input[type="email"]')).toBeDisabled();
   await profileForm.locator('input[name="name"]').fill('عميل محقق');
   await profileForm.locator('input[name="phone"]').fill('0559876543');
   await profileForm.locator('button[type="submit"]').click();
-  await expect(profileForm.locator('input[name="name"]')).toHaveValue('عميل محقق', {
-    timeout: 5000,
-  });
+  await expect(page.getByText('تم تحديث ملفك الشخصي')).toBeVisible({ timeout: 15_000 });
+  await expect(profileForm.locator('input[name="name"]')).toHaveValue('عميل محقق');
+
+  // And it is really persisted, not merely echoed back into the form.
+  await page.reload();
+  await expect(page.locator('main form input[name="name"]')).toHaveValue('عميل محقق');
+  await expect(page.locator('main form input[name="phone"]')).toHaveValue('0559876543');
 
   // 6. The guest cart cookie is still in this browser context. Adding a
   // *different* product while signed in triggers the merge on the first

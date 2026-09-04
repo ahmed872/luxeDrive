@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { AppError, serverEnv, clientEnv } from '@/modules/core';
 
+import { mediaPublicBaseUrl } from './public-origins';
 import { sign, verify } from './signing';
 import type {
   AllowedImageMimeType,
@@ -195,8 +196,16 @@ export const localStorageProvider: StorageProvider = {
     }
   },
 
+  /** Same shared precedence the S3 provider uses (`public-origins.ts`), so
+   * `next.config.ts`'s image allowlist and this URL can never drift apart
+   * (P14) — plus this provider's own route prefix, which is the one part
+   * that genuinely differs between the two backends. */
   getPublicUrl(key: string): string {
-    const base = serverEnv().MEDIA_PUBLIC_BASE_URL ?? clientEnv().NEXT_PUBLIC_SITE_URL;
-    return `${base.replace(/\/$/, '')}/api/media/local-upload/${key}`;
+    const base = mediaPublicBaseUrl({
+      STORAGE_PROVIDER: 'local',
+      MEDIA_PUBLIC_BASE_URL: serverEnv().MEDIA_PUBLIC_BASE_URL,
+      NEXT_PUBLIC_SITE_URL: clientEnv().NEXT_PUBLIC_SITE_URL,
+    });
+    return `${base ?? ''}/api/media/local-upload/${key}`;
   },
 };

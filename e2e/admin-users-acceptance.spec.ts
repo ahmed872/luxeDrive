@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/authenticated';
-import { E2E_OWNER } from './fixtures/admin-credentials';
+import { E2E_USERS_OWNER } from './fixtures/admin-credentials';
 
 /**
  * P14 §B/§D/§I — staff administration, driven end to end in a real browser:
@@ -66,9 +66,9 @@ async function createStaffAccount(page: Page, email: string, role: 'Staff' | 'St
 
 test.describe('the staff administration journey', () => {
   test('create, sign in, change role, disable, and sign-in is refused', async ({
-    ownerContext,
+    usersOwnerContext,
   }) => {
-    const page = await ownerContext.newPage();
+    const page = await usersOwnerContext.newPage();
     await setLocale(page, 'en');
 
     const email = uniqueEmail('journey');
@@ -144,21 +144,23 @@ test.describe('the staff administration journey', () => {
     await staffContext.close();
   });
 
-  test('an owner cannot change their own role or disable themselves', async ({ ownerContext }) => {
-    const page = await ownerContext.newPage();
+  test('an owner cannot change their own role or disable themselves', async ({
+    usersOwnerContext,
+  }) => {
+    const page = await usersOwnerContext.newPage();
     await setLocale(page, 'en');
     await page.goto('/admin/users');
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible({ timeout: 60_000 });
 
-    const ownRow = page.locator('tbody tr').filter({ hasText: E2E_OWNER.email });
+    const ownRow = page.locator('tbody tr').filter({ hasText: E2E_USERS_OWNER.email });
     await expect(ownRow.getByText('(you)')).toBeVisible();
     await expect(ownRow.getByRole('button')).toHaveCount(0);
   });
 
   test('a duplicate email is refused with a message that names the problem', async ({
-    ownerContext,
+    usersOwnerContext,
   }) => {
-    const page = await ownerContext.newPage();
+    const page = await usersOwnerContext.newPage();
     await setLocale(page, 'en');
 
     const email = uniqueEmail('dup');
@@ -175,9 +177,9 @@ test.describe('the staff administration journey', () => {
   });
 
   test('a password below the admin policy is refused client- and server-side', async ({
-    ownerContext,
+    usersOwnerContext,
   }) => {
-    const page = await ownerContext.newPage();
+    const page = await usersOwnerContext.newPage();
     await setLocale(page, 'en');
     await page.goto('/admin/users/new');
 
@@ -201,30 +203,37 @@ test.describe('the staff administration journey', () => {
 
 for (const locale of ['ar', 'en'] as const) {
   test.describe(`admin users — accessibility (axe, ${locale})`, () => {
-    test('the users list', async ({ ownerContext }) => {
-      const page = await ownerContext.newPage();
+    test('the users list', async ({ usersOwnerContext }) => {
+      const page = await usersOwnerContext.newPage();
       await setLocale(page, locale);
       await page.goto('/admin/users');
       await expect(page.locator('main')).toBeVisible({ timeout: 60_000 });
       await axe(page);
     });
 
-    test('the create form', async ({ ownerContext }) => {
-      const page = await ownerContext.newPage();
+    test('the create form', async ({ usersOwnerContext }) => {
+      const page = await usersOwnerContext.newPage();
       await setLocale(page, locale);
       await page.goto('/admin/users/new');
       await expect(page.locator('main form')).toBeVisible({ timeout: 60_000 });
       await axe(page);
     });
 
-    test('the change-role dialog', async ({ ownerContext }) => {
-      const page = await ownerContext.newPage();
+    test('the change-role dialog', async ({ usersOwnerContext }) => {
+      const page = await usersOwnerContext.newPage();
       await setLocale(page, locale);
       await page.goto('/admin/users');
       await expect(page.locator('main')).toBeVisible({ timeout: 60_000 });
 
-      // The signed-in owner's own row has no actions, so pick a row that does.
-      const actionable = page.locator('tbody tr').filter({ hasNot: page.getByText('(you)') });
+      // The signed-in owner's own row has no actions, so pick a row that
+      // does. Excluded by email, not by the "(you)" marker: that marker is
+      // translated ("(أنت)" in Arabic), so filtering on the English string
+      // silently matched nothing in the Arabic run and left this test
+      // depending on which row happened to sort first.
+      const actionable = page
+        .locator('tbody tr')
+        .filter({ hasNot: page.getByText(E2E_USERS_OWNER.email) });
+      await expect(actionable.first()).toBeVisible();
       await actionable.first().getByRole('button').first().click();
       await expect(page.getByRole('dialog')).toBeVisible();
       await axe(page);
@@ -233,8 +242,8 @@ for (const locale of ['ar', 'en'] as const) {
 }
 
 test.describe('admin users — keyboard', () => {
-  test('the create form is completable without a mouse', async ({ ownerContext }) => {
-    const page = await ownerContext.newPage();
+  test('the create form is completable without a mouse', async ({ usersOwnerContext }) => {
+    const page = await usersOwnerContext.newPage();
     await setLocale(page, 'en');
     await page.goto('/admin/users/new');
     const form = page.locator('main form');
@@ -278,9 +287,9 @@ test.describe('admin users — mobile', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('the users screen is usable at 390px, with no horizontal page scroll', async ({
-    ownerContext,
+    usersOwnerContext,
   }) => {
-    const page = await ownerContext.newPage();
+    const page = await usersOwnerContext.newPage();
     await setLocale(page, 'en');
     await page.goto('/admin/users');
     await expect(page.locator('main')).toBeVisible({ timeout: 60_000 });

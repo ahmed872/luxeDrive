@@ -1,7 +1,7 @@
 import { test as base } from '@playwright/test';
 import type { Browser, BrowserContext } from '@playwright/test';
 
-import { E2E_MANAGER, E2E_OWNER, E2E_STAFF } from './admin-credentials';
+import { E2E_MANAGER, E2E_OWNER, E2E_STAFF, E2E_USERS_OWNER } from './admin-credentials';
 
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
 
@@ -54,6 +54,7 @@ async function loginAndCaptureState(
 let ownerStatePromise: Promise<StorageState> | undefined;
 let staffStatePromise: Promise<StorageState> | undefined;
 let managerStatePromise: Promise<StorageState> | undefined;
+let usersOwnerStatePromise: Promise<StorageState> | undefined;
 
 // Playwright's fixture callback is conventionally named `use`, which is
 // also React's hook name — ESLint's `react-hooks` rule (applied globally by
@@ -64,6 +65,7 @@ export const test = base.extend<{
   ownerContext: BrowserContext;
   staffContext: BrowserContext;
   managerContext: BrowserContext;
+  usersOwnerContext: BrowserContext;
 }>({
   ownerContext: async ({ browser }, provide) => {
     ownerStatePromise ??= loginAndCaptureState(browser, E2E_OWNER);
@@ -82,6 +84,15 @@ export const test = base.extend<{
   managerContext: async ({ browser }, provide) => {
     managerStatePromise ??= loginAndCaptureState(browser, E2E_MANAGER);
     const context = await browser.newContext({ storageState: await managerStatePromise });
+    await blockOffOriginRequests(context);
+    await provide(context);
+    await context.close();
+  },
+  /** Staff administration's own owner — see `E2E_USERS_OWNER`'s comment for
+   * why it is not `ownerContext`. */
+  usersOwnerContext: async ({ browser }, provide) => {
+    usersOwnerStatePromise ??= loginAndCaptureState(browser, E2E_USERS_OWNER);
+    const context = await browser.newContext({ storageState: await usersOwnerStatePromise });
     await blockOffOriginRequests(context);
     await provide(context);
     await context.close();

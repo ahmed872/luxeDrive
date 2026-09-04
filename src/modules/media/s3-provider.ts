@@ -10,6 +10,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import { AppError, serverEnv } from '@/modules/core';
 
+import { mediaPublicBaseUrl } from './public-origins';
 import {
   UPLOAD_URL_TTL_SECONDS,
   type CreateSignedUploadInput,
@@ -117,13 +118,25 @@ export const s3StorageProvider: StorageProvider = {
     await getClient().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
   },
 
+  /** The precedence (CDN base → S3-compatible endpoint → AWS
+   * virtual-hosted) lives in `public-origins.ts` rather than here, because
+   * `next.config.ts`'s `images.remotePatterns` has to allow exactly the
+   * origins this produces and the two silently disagreeing means every
+   * product photo 400s (P14). */
   getPublicUrl(key: string): string {
     const env = serverEnv();
-    if (env.MEDIA_PUBLIC_BASE_URL) return `${env.MEDIA_PUBLIC_BASE_URL.replace(/\/$/, '')}/${key}`;
-    if (env.STORAGE_ENDPOINT) {
-      return `${env.STORAGE_ENDPOINT.replace(/\/$/, '')}/${bucket()}/${key}`;
+    const base = mediaPublicBaseUrl({
+      STORAGE_PROVIDER: 's3',
+      MEDIA_PUBLIC_BASE_URL: env.MEDIA_PUBLIC_BASE_URL,
+      STORAGE_ENDPOINT: env.STORAGE_ENDPOINT,
+      // Reuses `bucket()`'s own unreachable-by-construction guard rather
+      // than inventing a second way to fail.
+      STORAGE_BUCKET: bucket(),
+      STORAGE_REGION: env.STORAGE_REGION,
+    });
+    if (!base) {
+      throw new AppError('INTERNAL', { internalMessage: 'No public base URL for S3 media' });
     }
-    const region = env.STORAGE_REGION ?? 'us-east-1';
-    return `https://${bucket()}.s3.${region}.amazonaws.com/${key}`;
+    return `${base}/${key}`;
   },
 };

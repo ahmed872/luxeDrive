@@ -40,13 +40,20 @@ export interface TestInboxMessage {
 /**
  * Calls the real, bearer-secret-protected dispatch endpoint — the same
  * request Vercel Cron would make in production. Returns the JSON summary
- * (`{ok, claimed, sent, retried, failed}`) so a test can assert on it
+ * (`{ok, claimed, sent, retried, failed, reclaimed}`) so a test can assert on it
  * directly rather than only inferring success from the inbox.
  */
 export async function triggerEmailDispatch(
   request: import('@playwright/test').APIRequestContext,
   baseUrl = 'http://127.0.0.1:3000',
-): Promise<{ ok: boolean; claimed: number; sent: number; retried: number; failed: number }> {
+): Promise<{
+  ok: boolean;
+  claimed: number;
+  sent: number;
+  retried: number;
+  failed: number;
+  reclaimed: number;
+}> {
   const response = await request.get(`${baseUrl}/api/internal/email-dispatch`, {
     headers: { Authorization: `Bearer ${EMAIL_DISPATCH_SECRET}` },
   });

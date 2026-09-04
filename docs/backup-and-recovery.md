@@ -93,27 +93,48 @@ migration:**
 If step 4 fails, the backup did not work, regardless of what the dump file
 looked like.
 
-| Date                    | Dump size | Restore duration | Result                                                          | Run by           |
-| ----------------------- | --------- | ---------------- | --------------------------------------------------------------- | ---------------- |
-| 2026-08-31 (P01, local) | 88 KB     | < 1s             | passed — 36 tables, seeded row present, migration record intact | P01 verification |
+| Date                    | Dump size | Restore duration | Result                                                                          | Run by           |
+| ----------------------- | --------- | ---------------- | ------------------------------------------------------------------------------- | ---------------- |
+| 2026-08-31 (P01, local) | 88 KB     | < 1s             | passed — 36 tables, seeded row present, migration record intact                 | P01 verification |
+| 2026-09-04 (P14, local) | 152 KB    | ~2s              | passed — 38 tables, 7 orders, 43 users, 245 audit rows, latest migration intact | P14 verification |
 
 The P01 drill ran against the local development database: a row was inserted,
 `scripts/backup.sh` produced a dump, the dump was restored into a scratch
 database, and the three verification queries confirmed the schema, the row and
-the migration history all came back. It proves the script and the procedure
-work; it does not prove anything about the production instance, which is what
-the first post-deployment drill is for.
+the migration history all came back.
+
+The P14 drill re-ran the whole procedure against the schema as it stands
+after P02–P13 — 38 tables now rather than P01's 36, carrying real orders,
+customers, payments, audit entries and outbox events rather than one seeded
+row. `scripts/backup.sh` produced and self-verified a 152 KB custom-format
+dump; `pg_restore --clean --if-exists` restored it into a scratch database in
+about two seconds; the three documented verification queries came back with
+38 tables, 7 orders, the correct latest `placed_at`, and
+`20260904111744_outbox_sending_status` as the last applied migration.
+
+Step 4 was run as far as this environment allows: rather than repointing the
+running application, a process was pointed at the restored database with the
+real `DATABASE_URL` and asked to load one order through the actual domain
+query the account page uses (`getOrderForCustomer`), which returned the order
+with its status triple, both line items and a `175000` SAR total. That
+exercises Prisma, the generated client and the order query against restored
+data — everything except the HTTP layer in front of it.
+
+Both drills prove the script and the procedure work. Neither proves anything
+about the production instance, which is what the first post-deployment drill
+is for.
 
 ## Status
 
 | Layer                 | State                                                                                         |
 | --------------------- | --------------------------------------------------------------------------------------------- |
-| Nightly dump script   | ready — `scripts/backup.sh`, verified locally in P01                                          |
-| Restore procedure     | documented above, verified locally in P01                                                     |
+| Nightly dump script   | ready — `scripts/backup.sh`, verified locally in P01 and again in P14                         |
+| Restore procedure     | documented above, verified locally in P01 and again in P14 against the full P13 schema        |
 | Provider PITR         | **not yet enabled** — requires the production database, which does not exist until deployment |
 | Scheduled nightly run | **not yet scheduled** — needs the production host                                             |
 | Restore drill         | **not yet performed** — needs a production database to drill against                          |
 
-The three open items are deployment tasks, not code tasks. They are the first
-items of the deployment step and are re-checked in the final production
-readiness audit (P13).
+The three open items are deployment tasks, not code tasks — every one of them
+needs a production database that does not exist yet. They are the first items
+of the deployment step. P14's audit re-checked them and could not close them
+for that reason; nothing about them is blocked on code.

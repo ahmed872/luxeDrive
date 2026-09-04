@@ -92,6 +92,46 @@ rather than silently pretending an integration exists. See
 `.env.example` for the exact contract and `MediaAsset.provider` for which
 backend actually holds a given asset's bytes today.
 
+#### Media storage in production (P14)
+
+**`local` is a development and test backend. A serverless deployment needs
+`s3`.** `local-provider.ts` says so in its own header comment; an earlier
+P14 draft of this document contradicted it, listing `STORAGE_PROVIDER=local`
+as one of the "free but genuinely production-ready" defaults alongside
+`PAYMENT_PROVIDER=none` and `EMAIL_PROVIDER=console`. Those two are;
+this one is not, and the difference is worth being precise about because
+the failure is silent-looking and lands on the store owner's first product
+photo.
+
+`local` writes uploaded bytes to `MEDIA_LOCAL_STORAGE_DIR` under the
+process's own working directory. On Vercel — and on any platform that runs
+the application as ephemeral, horizontally-scaled function instances — that
+directory is not a place bytes can be kept:
+
+- the deployment's filesystem is read-only apart from `/tmp`, so the write
+  fails outright rather than succeeding-then-vanishing;
+- `/tmp`, if pointed at deliberately, is per-instance and per-invocation, so
+  an upload confirmed by one instance is invisible to the next request and
+  gone entirely on the next cold start;
+- the `MediaAsset` row, meanwhile, is written to a real, shared, persistent
+  database — so the catalog would carry rows whose bytes do not exist, which
+  is worse than an upload that simply refuses.
+
+Nothing about this is a gap in the code: `getStorageProvider()` reads
+`STORAGE_PROVIDER` in exactly one place, `S3StorageProvider` implements the
+same `StorageProvider` interface against any S3-compatible bucket (AWS S3,
+Cloudflare R2, MinIO, Wasabi, Backblaze B2, …), and the four `STORAGE_*`
+values are validated at boot. Switching is a configuration change, not a
+code change — but it is a change production has to make.
+
+`local` remains exactly right for what it was built for: a fresh checkout,
+`pnpm dev`, and the whole test suite, none of which need anyone to hold a
+cloud account. It is also a legitimate production choice on a single
+long-lived host with a persistent volume (a VPS, a container with a mounted
+disk) — which is why the schema does not refuse it outright the way it
+refuses `AUTH_TRUST_HOST` being unset. It is refused by the platform, not
+by us, and only on platforms where it cannot work.
+
 ### Authentication (P06)
 
 `AUTH_SECRET` signs and encrypts the Auth.js session JWT — Auth.js reads it
@@ -212,8 +252,24 @@ verifies them with the real HMAC code — the stub loads `.env` itself
 (`.env.test` under `NODE_ENV=test`), so keeping the two files' payment
 block identical is the simplest way to stay consistent.
 
-The e2e suite also seeds its own fixed accounts; the specs run
-`pnpm db:seed-e2e-admins` themselves, so nothing extra is needed by hand.
+The e2e suite seeds its own fixed accounts — the specs run
+`pnpm db:seed-e2e-admins` themselves — but it does **not** seed the demo
+catalog it browses, and six spec files (`storefront-*`,
+`cart-promotions-accessibility`) navigate to a specific product by slug.
+Against an empty catalog those specs do not fail quickly: the "Add to cart"
+button never appears, the click waits, and the test dies on its own timeout
+minutes later with nothing pointing at the real cause. Populate the
+development database once, before the first e2e run:
+
+```bash
+pnpm db:migrate-cars            # legacy/src/data/cars.json → the catalog
+pnpm db:seed-storefront-demo    # publishes it, adds Arabic copy, homepage
+pnpm db:seed-e2e-orders         # the fixed order the order specs open
+pnpm db:seed-e2e-account        # the fixed customer account the account specs use
+```
+
+`db:migrate-cars` refuses to run twice (it stops if a `cars` category
+already exists); the other three are idempotent.
 
 ## Production (Vercel)
 
@@ -289,10 +345,11 @@ generated about this project.
   every sign-in fails without it. See "Authentication (P06)" above for why.
 - `NEXT_PUBLIC_SITE_URL` — the exact production origin; every email link and
   canonical URL is built from this value, never a request's `Host` header.
-- `STORAGE_PROVIDER` + its pair (`MEDIA_UPLOAD_SIGNING_SECRET` for `local`,
-  or the four `STORAGE_*` values for `s3`) — `local` is a real, free,
-  fully-functional choice; nothing about going to production requires
-  object storage specifically.
+- `STORAGE_PROVIDER="s3"` plus its four `STORAGE_*` values — **required for
+  a serverless deployment, Vercel included.** See "Media storage in
+  production" below: this is the one place where the "free defaults are
+  real production configurations" rule genuinely does not hold, and an
+  earlier draft of this document said otherwise.
 
 **Customer authentication** shares `AUTH_SECRET`'s session-signing
 infrastructure and `DATABASE_URL`; it has no configuration of its own beyond
@@ -318,23 +375,71 @@ those two.
   `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`) only once a provider is
   actually enabled.
 
+### What a multi-instance deployment changes (P14)
+
+Three behaviours in this codebase are correct on one long-lived process and
+weaker — or wrong — the moment the application runs as many short-lived
+instances, which is exactly what a serverless host does. None of them is a
+missing implementation; each is a deliberate adapter with the production
+requirement written next to it. They are collected here because they are
+easy to miss one at a time, and because two of them are security-relevant.
+
+1. **Rate limiting is per-instance.** `InMemoryRateLimiter`
+   (`identity/rate-limiter.ts`) keeps its counters in process memory, so
+   each instance enforces its own budget and every cold start begins with an
+   empty one. On a single always-on process the published limits hold
+   exactly (login: 10 per 5 minutes per IP+email; password reset: 3 per 15
+   minutes per address). Spread across N instances a caller gets up to N
+   times that, and on a platform that starts a fresh instance readily, the
+   window resets far more often than it expires. **A production deployment
+   that scales past one instance needs a shared store** (Redis/Upstash or
+   equivalent) behind the same `RateLimiter` interface — one new class and
+   one line in the getters, no call-site changes. Until then the limiter is
+   real but its guarantee is per-instance, and the login flow's other
+   defences (generic non-enumerating errors, the 12-character admin password
+   policy, DB-revocable sessions) are what carry the rest.
+
+2. **Media storage must be `s3`.** See "Media storage in production" above.
+
+3. **The outbox dispatcher's schedule is external.** Nothing inside the
+   application drives it: something has to call
+   `GET /api/internal/email-dispatch` on a cadence, and if that something
+   silently stops, verification and reset emails stop with it and the
+   application reports no error — the outbox simply keeps growing with
+   `PENDING` rows. After deploying, confirm the schedule is _actually_
+   firing (the GitHub Actions workflow's run history, and the Vercel cron's
+   own logs) rather than assuming it from the fact that the files exist. A
+   dispatcher whose worker is killed mid-send is handled in code — the claim
+   is a five-minute lease and an abandoned row is picked back up (P14, see
+   `CLAIM_LEASE_MS` in `email-dispatcher.ts`) — but a scheduler that never
+   calls at all is not something the application can detect from inside.
+
 ### Staying on free infrastructure until this project has a paying client
 
 Every default in this project is chosen so a real production deploy costs
 nothing until a real vendor is actually needed:
 
-- `STORAGE_PROVIDER=local`, `PAYMENT_PROVIDER=none`, and `EMAIL_PROVIDER=console`
-  are each a genuine, working production configuration, not a stub — the
-  application boots and functions completely with none of them costing
-  money. Verification/reset links are logged rather than emailed, payment is
-  visibly unavailable rather than broken, and uploaded media lives on
-  Vercel's own filesystem rather than an object-storage bucket.
+- `PAYMENT_PROVIDER=none` and `EMAIL_PROVIDER=console` are each a genuine,
+  working production configuration, not a stub — the application boots and
+  functions completely with neither of them costing money. Verification and
+  reset links are logged rather than emailed, and payment is visibly
+  unavailable rather than broken.
+- `STORAGE_PROVIDER=local` is **not** one of them, and a previous draft of
+  this document was wrong to list it alongside the other two — see "Media
+  storage in production" above. Object storage is the second thing a real
+  deployment has to provision, after the database.
 - Vercel itself has a permanent free (Hobby) tier suitable for this project
   at its current stage; nothing in this codebase requires a paid Vercel plan.
 - A managed Postgres database is the one piece every configuration still
   needs — several providers (e.g. Neon, Supabase) have a free tier
   sufficient for early-stage traffic; which one to use is a deployment
   decision, not something this codebase assumes.
+- An S3-compatible bucket is the other. Which provider is likewise a
+  deployment decision this codebase does not assume — it speaks the S3 API
+  rather than any one vendor's — and several offer a free or
+  near-free entry tier at this project's volume. No pricing claim here is
+  verified from inside this repository; check the provider's own current
+  terms before committing to one.
 - The moment `EMAIL_PROVIDER=smtp` is genuinely wanted (real verification/
   reset emails reaching real inboxes), an SMTP-speaking transactional
   service is needed — most (Postmark, SES, Mailgun's free tier, …) have a
