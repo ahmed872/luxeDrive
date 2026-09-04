@@ -26,6 +26,7 @@ export {
 } from './customer.service';
 
 export {
+  queueEmailVerificationEmail,
   createEmailVerificationToken,
   verifyEmailToken,
   createPasswordResetToken,

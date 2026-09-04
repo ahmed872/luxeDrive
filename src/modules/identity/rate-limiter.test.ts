@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { InMemoryRateLimiter } from './rate-limiter';
+import {
+  InMemoryRateLimiter,
+  PASSWORD_RESET_RATE_LIMIT,
+  RESEND_VERIFICATION_RATE_LIMIT,
+  getPasswordResetRateLimiter,
+  getResendVerificationRateLimiter,
+  resetPasswordResetRateLimiter,
+  resetResendVerificationRateLimiter,
+} from './rate-limiter';
 
 describe('InMemoryRateLimiter', () => {
   it('allows attempts up to the limit within the window', async () => {
@@ -43,5 +51,52 @@ describe('InMemoryRateLimiter', () => {
     expect((await limiter.check('k')).allowed).toBe(false);
     limiter.reset();
     expect((await limiter.check('k')).allowed).toBe(true);
+  });
+});
+
+/** P13 §10 — email-triggering actions must not become spam mechanisms. */
+describe('getPasswordResetRateLimiter', () => {
+  it('is a shared singleton, not a fresh limiter per call', async () => {
+    resetPasswordResetRateLimiter();
+    const limiter = getPasswordResetRateLimiter();
+    expect(getPasswordResetRateLimiter()).toBe(limiter);
+  });
+
+  it('allows exactly PASSWORD_RESET_RATE_LIMIT.limit requests, then blocks', async () => {
+    resetPasswordResetRateLimiter();
+    const limiter = getPasswordResetRateLimiter();
+    const key = 'shopper@example.com';
+    for (let i = 0; i < PASSWORD_RESET_RATE_LIMIT.limit; i += 1) {
+      expect((await limiter.check(key)).allowed).toBe(true);
+    }
+    expect((await limiter.check(key)).allowed).toBe(false);
+  });
+
+  it('tracks each email independently, so one address cannot exhaust another’s budget', async () => {
+    resetPasswordResetRateLimiter();
+    const limiter = getPasswordResetRateLimiter();
+    for (let i = 0; i < PASSWORD_RESET_RATE_LIMIT.limit; i += 1) {
+      await limiter.check('victim@example.com');
+    }
+    expect((await limiter.check('victim@example.com')).allowed).toBe(false);
+    expect((await limiter.check('someone-else@example.com')).allowed).toBe(true);
+  });
+});
+
+describe('getResendVerificationRateLimiter', () => {
+  it('is a shared singleton, not a fresh limiter per call', async () => {
+    resetResendVerificationRateLimiter();
+    const limiter = getResendVerificationRateLimiter();
+    expect(getResendVerificationRateLimiter()).toBe(limiter);
+  });
+
+  it('allows exactly RESEND_VERIFICATION_RATE_LIMIT.limit requests per userId, then blocks', async () => {
+    resetResendVerificationRateLimiter();
+    const limiter = getResendVerificationRateLimiter();
+    const userId = 'user-1';
+    for (let i = 0; i < RESEND_VERIFICATION_RATE_LIMIT.limit; i += 1) {
+      expect((await limiter.check(userId)).allowed).toBe(true);
+    }
+    expect((await limiter.check(userId)).allowed).toBe(false);
   });
 });

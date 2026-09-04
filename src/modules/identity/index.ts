@@ -72,3 +72,8 @@ export {
 } from './audit.service';
 
 export { revokeAllUserSessions, revokeDbSession } from './session.service';
+
+export {
+  getPasswordResetRateLimiter,
+  getResendVerificationRateLimiter,
+} from './rate-limiter';

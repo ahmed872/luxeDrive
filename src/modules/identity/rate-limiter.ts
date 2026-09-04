@@ -117,3 +117,49 @@ export function getCustomerLoginRateLimiter(): InMemoryRateLimiter {
 export function resetCustomerLoginRateLimiter(): void {
   customerLoginLimiter?.reset();
 }
+
+/** 3 requests per 15 minutes per normalized email (P13 §10). Password reset
+ * is the sharper spam vector of the two email-triggering actions:
+ * registration already caps itself at one send per address (a second
+ * attempt for an already-registered email fails with `CONFLICT` before any
+ * outbox event is queued), but nothing about `requestPasswordReset` stops a
+ * caller from asking for the same address's reset link over and over — and
+ * because that function must stay enumeration-safe (P12 §13), the throttle
+ * has to key on the *target* email regardless of whether an account exists
+ * for it, not on anything only a real account would have. */
+export const PASSWORD_RESET_RATE_LIMIT: RateLimiterOptions = { limit: 3, windowMs: 15 * 60 * 1000 };
+
+let passwordResetLimiter: InMemoryRateLimiter | undefined;
+
+export function getPasswordResetRateLimiter(): InMemoryRateLimiter {
+  if (!passwordResetLimiter) passwordResetLimiter = new InMemoryRateLimiter(PASSWORD_RESET_RATE_LIMIT);
+  return passwordResetLimiter;
+}
+
+/** Test-only. */
+export function resetPasswordResetRateLimiter(): void {
+  passwordResetLimiter?.reset();
+}
+
+/** Same policy, keyed by the *signed-in* `userId` rather than an email —
+ * `resendVerificationAction` already requires a real session (P12 §12), so
+ * there is no enumeration concern here, only "don't let one account queue
+ * unlimited outbox events". */
+export const RESEND_VERIFICATION_RATE_LIMIT: RateLimiterOptions = {
+  limit: 3,
+  windowMs: 15 * 60 * 1000,
+};
+
+let resendVerificationLimiter: InMemoryRateLimiter | undefined;
+
+export function getResendVerificationRateLimiter(): InMemoryRateLimiter {
+  if (!resendVerificationLimiter) {
+    resendVerificationLimiter = new InMemoryRateLimiter(RESEND_VERIFICATION_RATE_LIMIT);
+  }
+  return resendVerificationLimiter;
+}
+
+/** Test-only. */
+export function resetResendVerificationRateLimiter(): void {
+  resendVerificationLimiter?.reset();
+}

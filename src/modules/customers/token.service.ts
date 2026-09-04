@@ -16,10 +16,31 @@ import { hashPassword, getUserByEmail, revokeAllUserSessions } from '@/modules/i
  * read of either token table can never itself grant verification or
  * recovery.
  *
- * What this file does not do: send anything. Every "create a token" function
- * only creates the row and records an outbox event for P13 to deliver later
- * (the same recorded-not-sent pattern P11 used for `payment.succeeded`).
- * There is no code path anywhere that fabricates delivery.
+ * What this file does not do: send anything, or hold a raw token anywhere
+ * durable long enough for an async sender to find it. The two concerns are
+ * split deliberately (P13 §5/§20):
+ *
+ *   "queue…" functions   — called at the moment something happens
+ *                           (registration, a reset request). They write
+ *                           only an `OutboxEvent` (`{userId}`, no token
+ *                           material at all) and mint nothing yet. This is
+ *                           the recorded-not-sent pattern P11 used for
+ *                           `payment.succeeded` — no code path here
+ *                           fabricates delivery.
+ *   "create…" functions  — called by P13's dispatcher at the moment it is
+ *                           actually about to send, once it has already
+ *                           claimed the queued event. Each mints a brand
+ *                           new token row and returns the raw value once.
+ *
+ * The split exists because a raw token cannot be reconstructed from its
+ * hash, and P13's dispatcher may run seconds or, after a retry, minutes
+ * after the triggering request — long after that request's local `token`
+ * variable is gone. Minting at send time instead of at trigger time means
+ * the token's TTL also starts from when the customer can actually see the
+ * link, not from an invisible moment they were never shown, and it means
+ * this file never has to put a raw secret into a durable payload (the
+ * `OutboxEvent.payload` a queue function writes carries only `userId`) —
+ * the one place P13 §4/§20 says it must never live in plaintext.
  */
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -48,23 +69,32 @@ export interface CreatedToken {
 }
 
 /**
- * Opens a new verification token for `userId` and records the outbox event
- * P13 will deliver as an actual email. Does not invalidate a still-valid
- * earlier token — a customer who requests a second link because the first
- * one didn't arrive should have both work, and single-use (below) means at
- * most one of them ever succeeds regardless.
+ * Records that `userId` should receive a verification email — an outbox
+ * event only, no token minted yet (see this file's own top comment). Does
+ * not invalidate a still-valid earlier token, and calling this twice is not
+ * an error: a customer who requests a second link because the first one
+ * didn't arrive should have both eventually work, and single-use (below)
+ * means at most one of the tokens each dispatch mints ever succeeds
+ * regardless.
+ */
+export async function queueEmailVerificationEmail(userId: string): Promise<void> {
+  await db.outboxEvent.create({
+    data: { type: 'customer.email_verification_requested', payload: { userId } },
+  });
+}
+
+/**
+ * Mints a fresh verification token for `userId` and returns its raw value.
+ * Called by P13's dispatcher once it has already claimed a queued
+ * `customer.email_verification_requested` event — never by a trigger site,
+ * and never writes an outbox event itself (its caller already owns one).
  */
 export async function createEmailVerificationToken(userId: string): Promise<CreatedToken> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
 
-  await db.$transaction(async (tx) => {
-    await tx.emailVerificationToken.create({
-      data: { userId, tokenHash: hashToken(token), expiresAt },
-    });
-    await tx.outboxEvent.create({
-      data: { type: 'customer.email_verification_requested', payload: { userId } },
-    });
+  await db.emailVerificationToken.create({
+    data: { userId, tokenHash: hashToken(token), expiresAt },
   });
 
   return { token, expiresAt };
@@ -118,21 +148,16 @@ export async function verifyEmailToken(rawToken: string): Promise<VerifyEmailRes
 // Password reset
 // ---------------------------------------------------------------------------
 
-/** The raw-token-returning half — mirrors `createEmailVerificationToken`
- * exactly, and exists as its own export so a caller that legitimately holds
- * the raw value (P13's future delivery code; a test standing in for it) has
- * a real function to call rather than reconstructing one by hand. */
+/** Mints a fresh reset token for `userId` and returns its raw value —
+ * mirrors `createEmailVerificationToken` exactly, called only by P13's
+ * dispatcher once it holds an already-claimed
+ * `customer.password_reset_requested` event. Writes no outbox event. */
 export async function createPasswordResetToken(userId: string): Promise<CreatedToken> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
 
-  await db.$transaction(async (tx) => {
-    await tx.passwordResetToken.create({
-      data: { userId, tokenHash: hashToken(token), expiresAt },
-    });
-    await tx.outboxEvent.create({
-      data: { type: 'customer.password_reset_requested', payload: { userId } },
-    });
+  await db.passwordResetToken.create({
+    data: { userId, tokenHash: hashToken(token), expiresAt },
   });
 
   return { token, expiresAt };
@@ -143,6 +168,8 @@ export async function createPasswordResetToken(userId: string): Promise<CreatedT
  * up the email, and returns exactly the same `void` whether or not an
  * account exists. The route calling this always shows the same "if an
  * account exists, we sent a link" message regardless of which branch ran.
+ * Queues an outbox event only — see this file's own top comment for why no
+ * token is minted here.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const user = await getUserByEmail(email);
@@ -150,7 +177,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
   // the admin surface's own concern, not this module's.
   if (!user || user.role !== 'CUSTOMER') return;
 
-  await createPasswordResetToken(user.id);
+  await db.outboxEvent.create({
+    data: { type: 'customer.password_reset_requested', payload: { userId: user.id } },
+  });
 }
 
 export type ResetPasswordResult =

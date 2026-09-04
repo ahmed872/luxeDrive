@@ -11,9 +11,13 @@ import {
   updateCustomerProfile,
   requestPasswordReset,
   resetPasswordWithToken,
-  createEmailVerificationToken,
+  queueEmailVerificationEmail,
 } from '@/modules/customers';
-import { recordAuditEvent } from '@/modules/identity';
+import {
+  recordAuditEvent,
+  getPasswordResetRateLimiter,
+  getResendVerificationRateLimiter,
+} from '@/modules/identity';
 import type { Locale } from '@/lib/i18n/locales';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import type { ActionResult } from '@/lib/admin/action-result';
@@ -171,8 +175,9 @@ export async function registerAction(
     });
     userId = user.id;
     await recordAuditEvent({ action: 'customer.registered', userId: user.id });
-    // Recorded, not sent — P13 owns actual delivery (P12 §12).
-    await createEmailVerificationToken(user.id);
+    // Queued, not sent from here — P13's dispatcher mints the actual token
+    // and delivers it (P12 §12).
+    await queueEmailVerificationEmail(user.id);
   } catch (error) {
     if (isAppError(error) && error.code === 'CONFLICT') {
       return { error: 'email_taken', fieldError: null, values };
@@ -213,15 +218,30 @@ export interface ForgotPasswordState {
   error: 'validation' | null;
 }
 
-/** Always the same outcome shape regardless of whether the email exists
+/**
+ * Always the same outcome shape regardless of whether the email exists
  * (P12 §13/§21) — `requestPasswordReset` itself already returns identically
- * either way; this is the form-facing mirror of that same discipline. */
+ * either way; this is the form-facing mirror of that same discipline.
+ *
+ * Rate-limited by the target address itself (P13 §10), not by caller IP:
+ * the threat this defends is one inbox getting flooded with reset emails,
+ * which an attacker can mount from as many IPs as they like but only ever
+ * against the one address they typed. A throttled request still returns
+ * `submitted: true` — the *same* success shown to a real send — because
+ * showing anything else would itself leak whether the address has an
+ * account (a throttle response only for real accounts would be a new
+ * enumeration channel P12 §13 already closed everywhere else).
+ */
 export async function forgotPasswordAction(
   _prevState: ForgotPasswordState,
   formData: FormData,
 ): Promise<ForgotPasswordState> {
   const parsed = emailSchema.safeParse(formData.get('email'));
   if (!parsed.success) return { submitted: false, error: 'validation' };
+
+  const normalized = parsed.data.trim().toLowerCase();
+  const rateLimit = await getPasswordResetRateLimiter().check(normalized);
+  if (!rateLimit.allowed) return { submitted: true, error: null };
 
   await requestPasswordReset(parsed.data);
   return { submitted: true, error: null };
@@ -326,14 +346,22 @@ export async function updateProfileAction(
   }
 }
 
-/** "Resend the verification email" on the account overview — records a new
- * token/outbox event exactly like registration's first one. Requires a real
+/** "Resend the verification email" on the account overview — queues a new
+ * outbox event exactly like registration's first one. Requires a real
  * session; there is no route that hands this to an unauthenticated caller
- * or accepts a target user id. */
+ * or accepts a target user id. Rate-limited by the signed-in `userId` (P13
+ * §10) — no enumeration concern here the way `forgotPasswordAction` has,
+ * since reaching this action at all already proves the session is real, so
+ * the throttled outcome is reported plainly rather than disguised as
+ * success. */
 export async function resendVerificationAction(): Promise<ActionResult> {
   try {
     const account = await requireCustomerAccount();
-    await createEmailVerificationToken(account.userId);
+
+    const rateLimit = await getResendVerificationRateLimiter().check(account.userId);
+    if (!rateLimit.allowed) return { ok: false, error: 'RATE_LIMITED' };
+
+    await queueEmailVerificationEmail(account.userId);
     await recordAuditEvent({
       action: 'customer.email_verification_requested',
       userId: account.userId,

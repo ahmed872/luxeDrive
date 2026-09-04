@@ -9,6 +9,7 @@ import {
   createEmailVerificationToken,
   createPasswordResetToken,
   isEmailVerified,
+  queueEmailVerificationEmail,
   requestPasswordReset,
   resetPasswordWithToken,
   verifyEmailToken,
@@ -35,9 +36,47 @@ async function customer(email = 'shopper@example.com') {
   return createUser({ email, password: 'correct-horse-9', role: 'CUSTOMER' });
 }
 
-describe('createEmailVerificationToken', () => {
-  it('creates a token row and an outbox event, without sending anything', async () => {
+/**
+ * P13 §5/§20 split this file's original single "create a token and queue an
+ * outbox event in one transaction" function into two: `queueEmailVerification
+ * Email` (an outbox event only, called at the trigger) and
+ * `createEmailVerificationToken` (mints the token, called only by the
+ * dispatcher once it has already claimed a queued event). This is a
+ * documented, justified rewrite — the original test asserted a shape this
+ * function no longer has, not a behavior that regressed: no plaintext token
+ * ever needs to survive in a durable payload between "something happened"
+ * and "the dispatcher is about to send", which is the entire reason for the
+ * split (see `token.service.ts`'s own top comment).
+ */
+describe('queueEmailVerificationEmail', () => {
+  it('records an outbox event without minting any token', async () => {
     const user = await customer();
+    await queueEmailVerificationEmail(user.id);
+
+    const events = await db.outboxEvent.findMany({
+      where: { type: 'customer.email_verification_requested' },
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toEqual({ userId: user.id });
+
+    expect(await db.emailVerificationToken.count({ where: { userId: user.id } })).toBe(0);
+  });
+
+  it('queuing twice records two events — a second request should still eventually be delivered', async () => {
+    const user = await customer();
+    await queueEmailVerificationEmail(user.id);
+    await queueEmailVerificationEmail(user.id);
+
+    expect(
+      await db.outboxEvent.count({ where: { type: 'customer.email_verification_requested' } }),
+    ).toBe(2);
+  });
+});
+
+describe('createEmailVerificationToken', () => {
+  it('mints a token row without writing an outbox event — that is the queue function’s job', async () => {
+    const user = await customer();
+    const before = await db.outboxEvent.count();
     const { token, expiresAt } = await createEmailVerificationToken(user.id);
 
     expect(token).toHaveLength(43); // 32 random bytes, base64url
@@ -46,11 +85,7 @@ describe('createEmailVerificationToken', () => {
     const rows = await db.emailVerificationToken.findMany({ where: { userId: user.id } });
     expect(rows).toHaveLength(1);
     expect(rows[0]!.tokenHash).not.toBe(token); // only the hash is stored
-
-    const events = await db.outboxEvent.findMany({
-      where: { type: 'customer.email_verification_requested' },
-    });
-    expect(events).toHaveLength(1);
+    expect(await db.outboxEvent.count()).toBe(before);
   });
 
   it('does not invalidate an earlier still-valid token when a second one is requested', async () => {
@@ -129,24 +164,38 @@ describe('isEmailVerified', () => {
   });
 });
 
+/**
+ * `requestPasswordReset` now only queues the outbox event (P13 §5/§20's
+ * split — see `queueEmailVerificationEmail`'s own comment above for the
+ * identical reasoning applied here); minting the actual reset token is
+ * `createPasswordResetToken`, called only by the dispatcher.
+ */
 describe('requestPasswordReset — no account enumeration (P12 §13/§21)', () => {
-  it('creates a reset token for an existing customer', async () => {
+  it('queues a reset outbox event for an existing customer, without minting a token', async () => {
     const user = await customer();
     await requestPasswordReset('shopper@example.com');
 
-    const rows = await db.passwordResetToken.findMany({ where: { userId: user.id } });
-    expect(rows).toHaveLength(1);
+    const events = await db.outboxEvent.findMany({
+      where: { type: 'customer.password_reset_requested' },
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]!.payload).toEqual({ userId: user.id });
+    expect(await db.passwordResetToken.count({ where: { userId: user.id } })).toBe(0);
   });
 
   it('is a silent no-op for an email that does not exist', async () => {
     await expect(requestPasswordReset('nobody@example.com')).resolves.toBeUndefined();
-    expect(await db.passwordResetToken.count()).toBe(0);
+    expect(
+      await db.outboxEvent.count({ where: { type: 'customer.password_reset_requested' } }),
+    ).toBe(0);
   });
 
   it('is a silent no-op for an admin account — password reset is a customer-only entry point', async () => {
     await createUser({ email: 'owner@example.com', password: 'correct-horse-9', role: 'OWNER' });
     await requestPasswordReset('owner@example.com');
-    expect(await db.passwordResetToken.count()).toBe(0);
+    expect(
+      await db.outboxEvent.count({ where: { type: 'customer.password_reset_requested' } }),
+    ).toBe(0);
   });
 });
 

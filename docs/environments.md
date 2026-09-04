@@ -183,9 +183,18 @@ them by hand.
   on `EMAIL_PROVIDER="console"` is a legitimate, honest choice (verification
   and reset links are logged, not delivered) rather than a broken one; only
   Production needs `smtp` actually configured.
-- `vercel.json`'s `crons` entry calls `GET /api/internal/email-dispatch` on
-  a schedule; Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
+- `vercel.json`'s `crons` entry calls `GET /api/internal/email-dispatch`
+  every 5 minutes; Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
   automatically for routes defined there, so the Vercel project's
   `CRON_SECRET` variable must be set to the *same* value as
   `EMAIL_DISPATCH_SECRET` — there is no separate mechanism, just one shared
-  secret the route checks the same way regardless of who is calling.
+  secret the route checks the same way regardless of who is calling. The
+  5-minute cadence is this project's own choice, not a Vercel requirement —
+  Vercel's plan tier can cap how often a cron schedule may fire (this has
+  changed over Vercel's history and is not verified against this specific
+  account), so confirm the account's actual limit before deploying and
+  widen `vercel.json`'s schedule if it is rejected. Nothing about
+  correctness depends on the exact interval: a longer gap only delays how
+  soon a queued email goes out, bounded by the token TTLs the dispatcher
+  already respects (`token.service.ts`'s 1-hour reset / 24-hour
+  verification windows).
