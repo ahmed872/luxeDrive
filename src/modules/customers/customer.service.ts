@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Customer, User } from '@generated/prisma';
+import type { Customer, Locale, User } from '@generated/prisma';
 
 import { db, AppError } from '@/modules/core';
 import { hashPassword } from '@/modules/identity';
@@ -47,6 +47,13 @@ export interface RegisterCustomerInput {
    * forcing it here would be one more field between a shopper and an
    * account. */
   phone?: string | null;
+  /** The storefront locale the customer actually registered through
+   * (`registerAction` already knows it from the URL) — persisted so P13's
+   * dispatcher sends every later notification in the language the customer
+   * chose, not the schema's `AR` default regardless of which page they
+   * used. Optional because `resolveCustomerForUser`'s lazy path creates a
+   * `User` with no registration moment at all to read one from. */
+  locale?: Locale;
 }
 
 export interface RegisteredCustomer {
@@ -85,6 +92,7 @@ export async function registerCustomer(input: RegisterCustomerInput): Promise<Re
           passwordHash,
           name: input.name.trim(),
           role: 'CUSTOMER',
+          ...(input.locale ? { locale: input.locale } : {}),
         },
       });
       const customer = await tx.customer.create({

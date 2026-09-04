@@ -172,6 +172,10 @@ export async function registerAction(
       password: parsed.data.password,
       name: parsed.data.name,
       phone: parsed.data.phone ?? null,
+      // Persisted so every later notification (P13's dispatcher) is sent in
+      // the language the customer actually registered through, not the
+      // schema's `AR` default regardless of which locale page they used.
+      locale: locale === 'en' ? 'EN' : 'AR',
     });
     userId = user.id;
     await recordAuditEvent({ action: 'customer.registered', userId: user.id });

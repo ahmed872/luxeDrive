@@ -41,6 +41,25 @@ describe('registerCustomer', () => {
     expect(customer.phone).toBe('0501234567');
   });
 
+  it('defaults to Arabic when no locale is given (the schema default)', async () => {
+    const { user } = await registerCustomer({
+      email: 'shopper@example.com',
+      password: 'correct-horse-9',
+      name: 'Shopper',
+    });
+    expect(user.locale).toBe('AR');
+  });
+
+  it('persists the locale the customer actually registered through (P13) — so a later notification is sent in that language, not the schema default regardless of which page was used', async () => {
+    const { user } = await registerCustomer({
+      email: 'shopper-en@example.com',
+      password: 'correct-horse-9',
+      name: 'Shopper',
+      locale: 'EN',
+    });
+    expect(user.locale).toBe('EN');
+  });
+
   it('normalizes the email before storing it', async () => {
     const { user } = await registerCustomer({
       email: '  Shopper@Example.COM  ',

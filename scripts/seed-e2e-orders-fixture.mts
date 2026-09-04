@@ -26,7 +26,7 @@ loadDotenv({ path: '.env', quiet: true });
 const { createCategory, getCategoryBySlug, createProduct, getProductBySlug, publishProduct } =
   await import('../src/modules/catalog/index.js');
 const { adjustStock } = await import('../src/modules/inventory/index.js');
-const { db } = await import('../src/modules/core/index.js');
+const { db, isAppError } = await import('../src/modules/core/index.js');
 const { E2E_ORDER_FIXTURE } = await import('../e2e/fixtures/order-fixture.js');
 
 const TARGET_STOCK = 500;
@@ -70,12 +70,23 @@ const variant = await db.variant.findUniqueOrThrow({ where: { sku: E2E_ORDER_FIX
 // again", whatever previous runs consumed, and `setTo` says exactly that
 // while still writing an audited adjustment row like any other movement.
 if (variant.stockQuantity !== TARGET_STOCK) {
-  await adjustStock({
-    variantId: variant.id,
-    setTo: TARGET_STOCK,
-    reason: 'CORRECTION',
-    note: 'e2e order fixture restock',
-  });
+  try {
+    await adjustStock({
+      variantId: variant.id,
+      setTo: TARGET_STOCK,
+      reason: 'CORRECTION',
+      note: 'e2e order fixture restock',
+    });
+  } catch (error) {
+    // Playwright runs spec files in parallel, and more than one can hit
+    // this same seed script at once: both read a below-target stock level,
+    // then both request "set to 500" — the second arrives after the first
+    // already committed it. The outcome either invocation wanted (the
+    // variant sitting at `TARGET_STOCK`) is already true, so a
+    // `stock_unchanged` rejection here is a benign double-restock, not a
+    // real failure.
+    if (!isAppError(error) || error.details?.reasonCode !== 'stock_unchanged') throw error;
+  }
 }
 
 console.log(
