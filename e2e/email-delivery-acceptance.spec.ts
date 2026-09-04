@@ -149,7 +149,9 @@ test.describe('Journey B — password reset', () => {
     await oldLoginForm.locator('input[name="email"]').fill(email);
     await oldLoginForm.locator('input[name="password"]').fill(oldPassword);
     await oldLoginForm.locator('button[type="submit"]').click();
-    await expect(page.locator('main').getByRole('alert')).toHaveText('Incorrect email or password.');
+    await expect(page.locator('main').getByRole('alert')).toHaveText(
+      'Incorrect email or password.',
+    );
 
     // 10. The new password does.
     await oldLoginForm.locator('input[name="email"]').fill(email);
@@ -165,7 +167,9 @@ test.describe('Journey C — abuse and security', () => {
     expect(response.status()).toBe(401);
   });
 
-  test('the dispatch endpoint refuses a request with the wrong bearer token', async ({ request }) => {
+  test('the dispatch endpoint refuses a request with the wrong bearer token', async ({
+    request,
+  }) => {
     const response = await request.get('http://127.0.0.1:3000/api/internal/email-dispatch', {
       headers: { Authorization: 'Bearer totally-wrong-secret-value-that-is-long-enough' },
     });

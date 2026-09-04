@@ -68,7 +68,7 @@ export async function readTestInbox(to: string, timeoutMs = 5000): Promise<TestI
   const deadline = Date.now() + timeoutMs;
 
   for (;;) {
-    let entries: string[] = [];
+    let entries: string[];
     try {
       entries = await readdir(dir);
     } catch {
@@ -94,7 +94,9 @@ export function extractLink(message: TestInboxMessage, pathIncludes: string): st
   const pattern = new RegExp(`https?://\\S*${pathIncludes}\\S*`);
   const match = pattern.exec(message.text);
   if (!match) {
-    throw new Error(`extractLink: no link containing "${pathIncludes}" in message text: ${message.text}`);
+    throw new Error(
+      `extractLink: no link containing "${pathIncludes}" in message text: ${message.text}`,
+    );
   }
   return match[0];
 }

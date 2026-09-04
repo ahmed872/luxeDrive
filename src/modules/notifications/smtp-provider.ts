@@ -4,7 +4,12 @@ import { createTransport, type Transporter } from 'nodemailer';
 
 import { serverEnv } from '@/modules/core';
 
-import { EmailSendError, type EmailMessage, type EmailProviderAdapter, type EmailSendResult } from './provider';
+import {
+  EmailSendError,
+  type EmailMessage,
+  type EmailProviderAdapter,
+  type EmailSendResult,
+} from './provider';
 
 /**
  * `EMAIL_PROVIDER="smtp"` — the real provider (P13 §2).
@@ -42,7 +47,10 @@ function transport(): Transporter {
     // already requires both fields whenever that is set. Guarded anyway
     // because a transport client silently pointed at `undefined:undefined`
     // is a worse failure mode than a clear thrown error.
-    throw new EmailSendError('permanent', 'smtp provider: EMAIL_SMTP_HOST/EMAIL_SMTP_PORT not configured');
+    throw new EmailSendError(
+      'permanent',
+      'smtp provider: EMAIL_SMTP_HOST/EMAIL_SMTP_PORT not configured',
+    );
   }
 
   cachedTransport = createTransport({

@@ -4,7 +4,12 @@ import path from 'node:path';
 
 import { serverEnv } from '@/modules/core';
 
-import { EmailSendError, type EmailMessage, type EmailProviderAdapter, type EmailSendResult } from './provider';
+import {
+  EmailSendError,
+  type EmailMessage,
+  type EmailProviderAdapter,
+  type EmailSendResult,
+} from './provider';
 
 /**
  * `EMAIL_PROVIDER="test"` — the deterministic adapter (P13 §15).

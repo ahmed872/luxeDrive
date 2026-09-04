@@ -405,8 +405,7 @@ export const dictionary = {
       passwordResetBody: 'وصلنا طلب لإعادة تعيين كلمة مرور حسابك في LuxeDrive.',
       passwordResetCta: 'إعادة تعيين كلمة المرور',
       passwordResetExpiry: 'ينتهي هذا الرابط خلال ساعة واحدة.',
-      passwordResetIgnore:
-        'إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان — لن تتغيّر كلمة مرورك.',
+      passwordResetIgnore: 'إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة بأمان — لن تتغيّر كلمة مرورك.',
     },
   },
   en: {

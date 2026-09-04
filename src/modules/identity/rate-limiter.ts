@@ -132,7 +132,8 @@ export const PASSWORD_RESET_RATE_LIMIT: RateLimiterOptions = { limit: 3, windowM
 let passwordResetLimiter: InMemoryRateLimiter | undefined;
 
 export function getPasswordResetRateLimiter(): InMemoryRateLimiter {
-  if (!passwordResetLimiter) passwordResetLimiter = new InMemoryRateLimiter(PASSWORD_RESET_RATE_LIMIT);
+  if (!passwordResetLimiter)
+    passwordResetLimiter = new InMemoryRateLimiter(PASSWORD_RESET_RATE_LIMIT);
   return passwordResetLimiter;
 }
 

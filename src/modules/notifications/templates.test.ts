@@ -67,7 +67,10 @@ describe('buildVerificationEmail', () => {
     // url — never a different one, never a host this test didn't supply.
     expect(message.html).toContain(`href="${url}"`);
     expect(message.html).toContain(`>${url}<`);
-    expect(message.html.match(/href="https?:\/\/[^"]*"/g)).toEqual([`href="${url}"`, `href="${url}"`]);
+    expect(message.html.match(/href="https?:\/\/[^"]*"/g)).toEqual([
+      `href="${url}"`,
+      `href="${url}"`,
+    ]);
   });
 
   it('escapes HTML-significant characters in copy, so a display name cannot break out of the markup', () => {

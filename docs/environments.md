@@ -186,7 +186,7 @@ them by hand.
 - `vercel.json`'s `crons` entry calls `GET /api/internal/email-dispatch`
   every 5 minutes; Vercel Cron sends `Authorization: Bearer $CRON_SECRET`
   automatically for routes defined there, so the Vercel project's
-  `CRON_SECRET` variable must be set to the *same* value as
+  `CRON_SECRET` variable must be set to the _same_ value as
   `EMAIL_DISPATCH_SECRET` — there is no separate mechanism, just one shared
   secret the route checks the same way regardless of who is calling. The
   5-minute cadence is this project's own choice, not a Vercel requirement —

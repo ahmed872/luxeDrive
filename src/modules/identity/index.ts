@@ -73,7 +73,4 @@ export {
 
 export { revokeAllUserSessions, revokeDbSession } from './session.service';
 
-export {
-  getPasswordResetRateLimiter,
-  getResendVerificationRateLimiter,
-} from './rate-limiter';
+export { getPasswordResetRateLimiter, getResendVerificationRateLimiter } from './rate-limiter';

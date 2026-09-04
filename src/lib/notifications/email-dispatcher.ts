@@ -219,7 +219,9 @@ async function sendForEvent(type: string, payload: unknown): Promise<void> {
       footer,
       automatedNotice: t.automatedNotice,
     };
-    await provider.send(buildVerificationEmail({ to: user.email, toName: user.name, ctaUrl: url, copy }));
+    await provider.send(
+      buildVerificationEmail({ to: user.email, toName: user.name, ctaUrl: url, copy }),
+    );
     return;
   }
 
@@ -240,5 +242,7 @@ async function sendForEvent(type: string, payload: unknown): Promise<void> {
     footer,
     automatedNotice: t.automatedNotice,
   };
-  await provider.send(buildPasswordResetEmail({ to: user.email, toName: user.name, ctaUrl: url, copy }));
+  await provider.send(
+    buildPasswordResetEmail({ to: user.email, toName: user.name, ctaUrl: url, copy }),
+  );
 }
