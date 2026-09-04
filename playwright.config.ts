@@ -65,6 +65,9 @@ export default defineConfig({
       // application" when no live Vercel deployment is reachable from this
       // environment. Off by default: the ordinary dev loop (and CI's own
       // separate `pnpm build` step) still uses the fast dev server.
+      // Requires `AUTH_TRUST_HOST="true"` in `.env` — `next start` sets
+      // `NODE_ENV=production`, which the env schema requires it for (P14;
+      // see AUTH_TRUST_HOST's own doc comment in env.schema.ts for why).
       command: process.env.E2E_PROD_MODE ? 'pnpm build && pnpm start' : 'pnpm dev',
       url: 'http://127.0.0.1:3000',
       reuseExistingServer: !process.env.CI,

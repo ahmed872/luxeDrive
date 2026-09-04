@@ -56,6 +56,15 @@ const emailProviderSchema = z.enum(['console', 'smtp', 'test']);
 
 const baseServerEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  /** Set by Next.js itself during `next build` (`phase-production-build`) —
+   * never by a person, never documented as something to configure. Read
+   * here only to tell "compiling" apart from "actually serving traffic":
+   * Next.js sets `NODE_ENV=production` for both, but only the latter is a
+   * real deployment the `AUTH_TRUST_HOST` check below should apply to (a
+   * `pnpm build` run in CI or on a laptop is not itself "behind a reverse
+   * proxy" the way a running deployment is). Never present in a real
+   * request's environment, only during the build step. */
+  NEXT_PHASE: z.string().optional(),
 
   /** PostgreSQL connection string. Secret. */
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required').startsWith('postgres'),
@@ -88,7 +97,20 @@ const baseServerEnvSchema = z.object({
   AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be at least 32 characters'),
   /** Set to "true" only when deployed behind a reverse proxy that Auth.js
    * should trust for the request's host/protocol (production). Read
-   * automatically by Auth.js under this exact name. */
+   * automatically by Auth.js under this exact name.
+   *
+   * Required whenever `NODE_ENV=production` (P14 §5/§10) — discovered by
+   * actually running a real `next build && next start` rather than only
+   * the dev server: Auth.js's own `trustHost` defaults to `false` outside
+   * development, and every deployment target this project has (Vercel's
+   * serverless/edge routing included) sits in front of the app exactly like
+   * a reverse proxy from Auth.js's point of view. Without this set,
+   * `trustHost` is falsy in production and Auth.js refuses every sign-in —
+   * customer and admin alike — behind one generic "There was a problem
+   * with the server configuration" page, with nothing in the application's
+   * own logs pointing at the cause. Enforcing it at boot turns that into an
+   * immediate, specific failure instead of a production outage discovered
+   * by users unable to log in. */
   AUTH_TRUST_HOST: z.enum(['true', 'false']).optional(),
 
   /** P11. Which payment adapter to run; `none` disables payment entirely. */
@@ -174,6 +196,24 @@ const baseServerEnvSchema = z.object({
 });
 
 export const serverEnvSchema = baseServerEnvSchema.superRefine((value, ctx) => {
+  if (
+    value.NODE_ENV === 'production' &&
+    value.NEXT_PHASE !== 'phase-production-build' &&
+    value.AUTH_TRUST_HOST !== 'true'
+  ) {
+    // See AUTH_TRUST_HOST's own doc comment above (P14) — verified by
+    // actually running `next build && next start` and watching every
+    // sign-in fail behind Auth.js's generic configuration-error page.
+    // Skipped during the build phase itself (see NEXT_PHASE's own comment)
+    // so `pnpm build` in CI/locally is unaffected — this only gates a
+    // process that will actually serve requests.
+    ctx.addIssue({
+      code: 'custom',
+      path: ['AUTH_TRUST_HOST'],
+      message:
+        'AUTH_TRUST_HOST must be "true" when NODE_ENV=production — Auth.js refuses every sign-in without it on this deployment target. See AUTH_TRUST_HOST\'s doc comment in this file.',
+    });
+  }
   if (value.STORAGE_PROVIDER === 's3') {
     for (const key of [
       'STORAGE_BUCKET',

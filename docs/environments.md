@@ -59,27 +59,27 @@ appear to pass while proving nothing.
 
 ## Which values are secret
 
-| Variable                                                             | Secret | Used from                  | Phase |
-| -------------------------------------------------------------------- | ------ | -------------------------- | ----- |
-| `DATABASE_URL`                                                       | yes    | server only                | now   |
-| `NEXT_PUBLIC_SITE_URL`                                               | no     | browser + server           | now   |
-| `NEXT_PUBLIC_DEFAULT_LOCALE`                                         | no     | browser + server           | now   |
-| `STORAGE_PROVIDER`                                                   | no     | server only                | P04   |
-| `MEDIA_UPLOAD_SIGNING_SECRET` (local provider)                       | yes    | server only                | P04   |
-| `MEDIA_LOCAL_STORAGE_DIR` (local provider)                           | no     | server only                | P04   |
-| `STORAGE_BUCKET`, `STORAGE_ENDPOINT`, `STORAGE_REGION` (s3 provider) | no     | server only                | P04   |
-| `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (s3 provider)   | yes    | server only                | P04   |
-| `MEDIA_PUBLIC_BASE_URL`                                              | no     | server only                | P04   |
-| `AUTH_SECRET`                                                        | yes    | server only                | P06   |
-| `AUTH_TRUST_HOST`                                                    | no     | server only                | P06   |
-| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (script-only)    | yes    | `create-admin` script only | P06   |
-| `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`                          | yes    | server only                | P11   |
-| `EMAIL_PROVIDER`                                                     | no     | server only                | P13   |
-| `EMAIL_DISPATCH_SECRET`                                              | yes    | server only                | P13   |
-| `EMAIL_FROM`, `EMAIL_FROM_NAME`                                      | no     | server only                | P13   |
-| `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER` (smtp)       | no     | server only                | P13   |
-| `EMAIL_SMTP_PASSWORD` (smtp)                                         | yes    | server only                | P13   |
-| `EMAIL_TEST_INBOX_DIR` (test provider)                               | no     | server only (`.env.test`)  | P13   |
+| Variable                                                             | Secret | Used from                  | Phase   |
+| -------------------------------------------------------------------- | ------ | -------------------------- | ------- |
+| `DATABASE_URL`                                                       | yes    | server only                | now     |
+| `NEXT_PUBLIC_SITE_URL`                                               | no     | browser + server           | now     |
+| `NEXT_PUBLIC_DEFAULT_LOCALE`                                         | no     | browser + server           | now     |
+| `STORAGE_PROVIDER`                                                   | no     | server only                | P04     |
+| `MEDIA_UPLOAD_SIGNING_SECRET` (local provider)                       | yes    | server only                | P04     |
+| `MEDIA_LOCAL_STORAGE_DIR` (local provider)                           | no     | server only                | P04     |
+| `STORAGE_BUCKET`, `STORAGE_ENDPOINT`, `STORAGE_REGION` (s3 provider) | no     | server only                | P04     |
+| `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (s3 provider)   | yes    | server only                | P04     |
+| `MEDIA_PUBLIC_BASE_URL`                                              | no     | server only                | P04     |
+| `AUTH_SECRET`                                                        | yes    | server only                | P06     |
+| `AUTH_TRUST_HOST`                                                    | no     | server only                | P06/P14 |
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (script-only)    | yes    | `create-admin` script only | P06     |
+| `PAYMENT_API_KEY`, `PAYMENT_WEBHOOK_SECRET`                          | yes    | server only                | P11     |
+| `EMAIL_PROVIDER`                                                     | no     | server only                | P13     |
+| `EMAIL_DISPATCH_SECRET`                                              | yes    | server only                | P13     |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME`                                      | no     | server only                | P13     |
+| `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER` (smtp)       | no     | server only                | P13     |
+| `EMAIL_SMTP_PASSWORD` (smtp)                                         | yes    | server only                | P13     |
+| `EMAIL_TEST_INBOX_DIR` (test provider)                               | no     | server only (`.env.test`)  | P13     |
 
 ### Media storage (P04)
 
@@ -101,10 +101,22 @@ session becomes unverifiable the moment the value changes (the JWT
 signature no longer matches), which is the correct way to force a full
 logout of every admin session at once if one is ever suspected compromised.
 
-`AUTH_TRUST_HOST` is unset (and unnecessary) for local development; set it
-to `"true"` only for a real production deploy sitting behind a reverse
-proxy/load balancer, so Auth.js trusts the forwarded host/protocol headers
-instead of rejecting the request.
+`AUTH_TRUST_HOST` is unset (and unnecessary) for local development; **it is
+required whenever `NODE_ENV=production`** (P14), enforced at boot the same
+way every other production-only requirement in this schema is. This was
+discovered, not assumed: running a real `next build && next start` locally
+(rather than only the dev server) showed every sign-in — customer and admin
+alike — failing behind Auth.js's own generic "There was a problem with the
+server configuration" page, with nothing in the application's logs pointing
+at the cause, because Auth.js's `trustHost` defaults to `false` outside
+development and this project's deployment target (Vercel) always sits in
+front of the running app the way a reverse proxy does. Set to `"true"`,
+Auth.js trusts the forwarded host/protocol headers instead of rejecting the
+request. The one exception is the build step itself (`next build` also sets
+`NODE_ENV=production` to compile, without ever serving a request) — the
+schema recognizes that phase via Next.js's own `NEXT_PHASE` variable and
+does not require `AUTH_TRUST_HOST` for it, so CI's `pnpm build` step needs
+no change.
 
 `BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD` are read only by
 `pnpm db:create-admin` (`scripts/create-admin.mts`) — never by the running
@@ -232,6 +244,8 @@ generated about this project.
 
 - `DATABASE_URL` — production's managed Postgres connection string.
 - `AUTH_SECRET` — signs/encrypts the admin session JWT (Auth.js).
+- `AUTH_TRUST_HOST="true"` — required the moment `NODE_ENV=production` (P14);
+  every sign-in fails without it. See "Authentication (P06)" above for why.
 - `NEXT_PUBLIC_SITE_URL` — the exact production origin; every email link and
   canonical URL is built from this value, never a request's `Host` header.
 - `STORAGE_PROVIDER` + its pair (`MEDIA_UPLOAD_SIGNING_SECRET` for `local`,

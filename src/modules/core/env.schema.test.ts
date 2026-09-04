@@ -108,6 +108,46 @@ describe('parseServerEnv — authentication (P06)', () => {
   });
 });
 
+describe('parseServerEnv — AUTH_TRUST_HOST required in production (P14)', () => {
+  it('rejects NODE_ENV=production without AUTH_TRUST_HOST=true — this exact gap made every sign-in fail behind a real `next start`', () => {
+    const result = parseServerEnv({ ...validServer, NODE_ENV: 'production' });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.message).toContain('AUTH_TRUST_HOST');
+  });
+
+  it('rejects NODE_ENV=production with AUTH_TRUST_HOST=false explicitly', () => {
+    const result = parseServerEnv({
+      ...validServer,
+      NODE_ENV: 'production',
+      AUTH_TRUST_HOST: 'false',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts NODE_ENV=production with AUTH_TRUST_HOST=true', () => {
+    const result = parseServerEnv({
+      ...validServer,
+      NODE_ENV: 'production',
+      AUTH_TRUST_HOST: 'true',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('does not require AUTH_TRUST_HOST during the build phase itself (NEXT_PHASE=phase-production-build), only when actually serving traffic', () => {
+    const result = parseServerEnv({
+      ...validServer,
+      NODE_ENV: 'production',
+      NEXT_PHASE: 'phase-production-build',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('does not require AUTH_TRUST_HOST outside production', () => {
+    expect(parseServerEnv({ ...validServer, NODE_ENV: 'development' }).success).toBe(true);
+    expect(parseServerEnv({ ...validServer, NODE_ENV: 'test' }).success).toBe(true);
+  });
+});
+
 describe('parseServerEnv — email (P13)', () => {
   it('defaults EMAIL_PROVIDER to console', () => {
     const result = parseServerEnv(validServer);
