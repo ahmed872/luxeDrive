@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/authenticated';
+import { E2E_CONTENT_TITLE_MARKER } from './fixtures/content-fixture';
 
 /**
  * P15 — homepage content, driven end to end in a real browser.
@@ -15,13 +16,42 @@ import { expect, test } from './fixtures/authenticated';
  * reordering, hiding, deleting — plus axe in both locales and the 390px
  * layout.
  *
- * Every section this spec creates carries a timestamped title so a
- * previous run's rows (the suite shares one database and does not truncate
- * between runs) can never be mistaken for this run's.
+ * Two things make this spec's housekeeping stricter than the rest of the
+ * suite's, and both come from the same fact: a `HomepageSection` is
+ * *global storefront state*, not a row only this spec looks at.
+ *
+ *   - **Every section it creates is a BANNER, never a HERO.** A hero
+ *     renders an `<h1>`; the homepage already has one, and a second would
+ *     break `storefront-navigation.spec.ts`'s "the homepage has a level-1
+ *     heading" for as long as this spec's section is live — the suite runs
+ *     `fullyParallel`, so "for as long as" overlaps other specs by
+ *     construction. A banner renders an `<h2>` and collides with nothing.
+ *   - **Every section is deleted after the test that made it,** pass or
+ *     fail — not only at the end of a happy path, since a section
+ *     surviving a failed test would keep rendering on `/ar` and `/en` for
+ *     every later spec. The cleanup names the exact titles *this worker*
+ *     created rather than sweeping the marker: `fullyParallel` means a
+ *     sibling worker may be mid-assertion on its own section, and a blanket
+ *     sweep from a per-worker hook would delete it out from under them.
+ *     (`pnpm db:cleanup-e2e-content` with no arguments does sweep
+ *     everything, for clearing debris by hand when no test is running.)
  */
+
+/** Titles this worker created and has yet to clean up. Module state, so it
+ * is per worker process — which is exactly the scope the cleanup needs. */
+const createdTitles: string[] = [];
 
 test.beforeAll(() => {
   execSync('pnpm db:seed-e2e-admins', { cwd: process.cwd(), stdio: 'inherit' });
+});
+
+test.afterEach(() => {
+  if (createdTitles.length === 0) return;
+  const args = createdTitles.splice(0).map((title) => JSON.stringify(title));
+  execSync(`pnpm db:cleanup-e2e-content ${args.join(' ')}`, {
+    cwd: process.cwd(),
+    stdio: 'inherit',
+  });
 });
 
 test.describe.configure({ timeout: 180_000 });
@@ -29,7 +59,7 @@ test.describe.configure({ timeout: 180_000 });
 const BASE = 'http://127.0.0.1:3000';
 
 function uniqueTitle(tag: string): string {
-  return `P15 ${tag} ${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  return `${E2E_CONTENT_TITLE_MARKER} ${tag} ${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
 /** The one control the axe pass has to press, named in each language —
@@ -51,16 +81,17 @@ async function axe(page: Page): Promise<void> {
   expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
 }
 
-/** Creates a HERO through the real two-step flow and returns its title. */
-async function createHero(page: Page, tag: string): Promise<string> {
+/** Creates a BANNER through the real two-step flow and returns its title.
+ * Banner rather than hero — see this file's header for why. */
+async function createSection(page: Page, tag: string): Promise<string> {
   const title = uniqueTitle(tag);
 
   await page.goto('/admin/content/new');
   // The card's accessible name is its title *and* its help sentence, so an
-  // exact 'Hero' would match nothing — and a loose 'Hero' would also match
-  // no other card, since no other type name contains it.
-  await page.getByRole('link', { name: /^Hero/ }).click();
-  await page.waitForURL(/\/admin\/content\/new\?type=HERO$/);
+  // exact 'Banner' would match nothing — and a loose one matches no other
+  // card, since no other type name contains it.
+  await page.getByRole('link', { name: /^Banner/ }).click();
+  await page.waitForURL(/\/admin\/content\/new\?type=BANNER$/);
 
   const form = page.locator('main form');
   await form.getByLabel('Title (Arabic)', { exact: true }).fill(`${title} عربي`);
@@ -69,6 +100,7 @@ async function createHero(page: Page, tag: string): Promise<string> {
 
   await page.waitForURL('**/admin/content');
   await expect(page.getByText(title, { exact: false }).first()).toBeVisible();
+  createdTitles.push(title);
   return title;
 }
 
@@ -84,7 +116,7 @@ test.describe('the homepage content journey', () => {
     const page = await contentOwnerContext.newPage();
     await setLocale(page, 'en');
 
-    const title = await createHero(page, 'live');
+    const title = await createSection(page, 'live');
 
     // The point of the whole section: the public page, not the admin list.
     await page.goto('/en');
@@ -101,7 +133,7 @@ test.describe('the homepage content journey', () => {
     const page = await contentOwnerContext.newPage();
     await setLocale(page, 'en');
 
-    const title = await createHero(page, 'draft');
+    const title = await createSection(page, 'draft');
     const draftTitle = `${title} REWRITTEN`;
 
     // Edit it and save as a draft rather than publishing.
@@ -144,7 +176,7 @@ test.describe('the homepage content journey', () => {
     const page = await contentOwnerContext.newPage();
     await setLocale(page, 'en');
 
-    const title = await createHero(page, 'hide');
+    const title = await createSection(page, 'hide');
 
     const row = page.locator('main li').filter({ hasText: title });
     await row.getByRole('button', { name: /^Hide —/ }).click();
@@ -182,8 +214,8 @@ test.describe('the homepage content journey', () => {
     const page = await contentOwnerContext.newPage();
     await setLocale(page, 'en');
 
-    const first = await createHero(page, 'order-a');
-    const second = await createHero(page, 'order-b');
+    const first = await createSection(page, 'order-a');
+    const second = await createSection(page, 'order-b');
 
     /** Where a title sits in the list, relative to the others. The store
      * already has seeded sections, so these two are somewhere near the end
@@ -210,7 +242,9 @@ test.describe('the homepage content journey', () => {
 
     // The storefront renders sections in the same stored order.
     await page.goto('/en');
-    const headings = page.getByRole('heading', { name: /^P15 order-/ });
+    const headings = page.getByRole('heading', {
+      name: new RegExp(`^${E2E_CONTENT_TITLE_MARKER} order-`),
+    });
     await expect(headings.first()).toHaveText(second, { timeout: 60_000 });
 
     await page.goto('/admin/content');
@@ -255,8 +289,8 @@ test.describe('accessibility', () => {
       await expect(page.locator('main')).toBeVisible({ timeout: 60_000 });
       await axe(page);
 
-      // A form carrying the most controls of any type: image upload, tone,
-      // CTA and both title languages.
+      // The type with the most controls — image upload, tone, CTA and both
+      // title languages — and the one the journeys above create.
       await page.goto('/admin/content/new?type=BANNER');
       await expect(page.locator('main form')).toBeVisible({ timeout: 60_000 });
       await axe(page);

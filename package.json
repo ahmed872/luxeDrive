@@ -35,6 +35,7 @@
     "db:deploy:managed": "node scripts/migrate-deploy.mjs",
     "db:bootstrap-admin": "NODE_OPTIONS=--conditions=react-server tsx scripts/bootstrap-admin-if-absent.mts",
     "vercel-build": "pnpm db:deploy:managed && pnpm db:bootstrap-admin && next build",
+    "db:cleanup-e2e-content": "NODE_OPTIONS=--conditions=react-server tsx scripts/cleanup-e2e-content.mts",
     "db:seed-e2e-admins": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-admins.mts",
     "db:seed-e2e-orders": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-orders-fixture.mts",
     "db:seed-e2e-account": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-e2e-account-fixture.mts",
