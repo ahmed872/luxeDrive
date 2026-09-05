@@ -81,7 +81,19 @@ export type AuditAction =
   | 'customer.email_verification_requested'
   | 'customer.email_verified'
   | 'customer.password_reset_requested'
-  | 'customer.password_reset_completed';
+  | 'customer.password_reset_completed'
+  // P15 — the store's own configuration and its homepage. Both are
+  // store-wide: one row and one ordered list that every visitor sees, so
+  // "who changed the currency" and "who took the hero down" have to be
+  // answerable the same way a price change already is.
+  | 'settings.updated'
+  | 'content.section_created'
+  | 'content.section_updated'
+  | 'content.section_deleted'
+  | 'content.section_enabled'
+  | 'content.section_disabled'
+  | 'content.section_published'
+  | 'content.sections_reordered';
 
 /** Every entity type an audit event can be about — `entityType` is a plain
  * string column at the DB level (no enum constraint), but a fixed union
@@ -95,7 +107,11 @@ export type AuditEntityType =
   | 'AttributeDefinition'
   | 'Variant'
   | 'Coupon'
-  | 'Order';
+  | 'Order'
+  // P15. `StoreSettings` is a single row, so its `entityId` is that row's
+  // id rather than a choice; `HomepageSection` names one section.
+  | 'StoreSettings'
+  | 'HomepageSection';
 
 export interface RecordAuditEventInput {
   action: AuditAction;

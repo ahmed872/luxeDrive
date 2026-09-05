@@ -16,7 +16,13 @@ export interface UploadedMediaAsset {
   height: number | null;
 }
 
-export type MediaUploadContext = 'product' | 'category' | 'brand';
+/** Every context the server's own `uploadContextSchema` accepts. Narrower
+ * than that would silently make a valid upload target unreachable from the
+ * admin; wider would produce a 422 the person cannot act on. `homepage` and
+ * `branding` join the three catalog contexts in P15, when the Content and
+ * Settings screens become their first callers — each still authorized
+ * server-side by its own permission (`media-context-permission.ts`). */
+export type MediaUploadContext = 'product' | 'category' | 'brand' | 'homepage' | 'branding';
 
 export interface MediaUploaderProps {
   context: MediaUploadContext;
