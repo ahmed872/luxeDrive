@@ -278,10 +278,48 @@ Development). Nothing is read from a committed file.
 
 - `DATABASE_URL` — the managed database's **pooled** connection string for the
   application.
-- Migrations must not run through a connection pooler. The deploy step sets
-  `DATABASE_URL` to the provider's **direct** connection string for the
-  duration of `pnpm db:deploy`. Prisma 7 removed `directUrl` from the schema,
-  so this is handled by the pipeline rather than by configuration.
+- Migrations must not run through a connection pooler. Set
+  `DIRECT_DATABASE_URL` to the provider's **direct** connection string and
+  the deploy step swaps it in for the migration command only (Prisma 7
+  removed `directUrl` from the schema, so this is the pipeline's job rather
+  than configuration). Providers that hand out one string for both — or a
+  self-hosted Postgres with no pooler — can leave it unset.
+
+### The deploy applies its own migrations (P15)
+
+`vercel.json` sets `buildCommand` to `pnpm vercel-build`, which is:
+
+```
+pnpm db:deploy:managed && pnpm db:bootstrap-admin && next build
+```
+
+This exists because a deployment has no shell. Without it, a first deploy
+fails in a way that names nothing useful: the storefront's home, category
+and product routes carry `revalidate`, so Next **prerenders them during the
+build**, so the build reads `StoreSettings` and the catalog — and against a
+database whose migrations were never applied, that surfaces as a Prisma
+`TableDoesNotExist` stack trace while exporting `/ar`, several layers from
+the actual cause. That was a real failure on this project's own Vercel
+project, not a hypothetical: every deployment errored at ~17 seconds while
+an older redeploy stayed live, which reads exactly like "the new code is
+broken".
+
+- `db:deploy:managed` (`scripts/migrate-deploy.mjs`) runs
+  `prisma migrate deploy`, through `DIRECT_DATABASE_URL` when that is set.
+  Applies only what is pending; a no-op against a current database.
+- `db:bootstrap-admin` (`scripts/bootstrap-admin-if-absent.mts`) creates the
+  first `OWNER` from `BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD`
+  **only when no admin account exists at all**, and skips silently when
+  those are unset. Deliberately not `pnpm db:create-admin`, which resets the
+  named account's password and re-asserts OWNER/active every run — correct
+  for a command a person types, wrong for one a build runs unattended, where
+  it would reset the owner's password on every deploy and re-enable an
+  account someone had disabled on purpose.
+
+⚠️ **Preview deployments now apply migrations too.** A Preview environment
+whose `DATABASE_URL` points at the production database would apply that
+branch's unreviewed migrations to production. Give Preview its own
+database — the rule stated below, now with consequences.
 
 Preview deployments must point at a database that is not production. A preview
 branch running migrations against live data is the same incident as running
