@@ -25,6 +25,21 @@ export {
   type UpdateCustomerProfileInput,
 } from './customer.service';
 
+/** Admin (P15) — the read-only customer directory. Deliberately no writes:
+ * `customers.read` is the only customer permission there is, and every
+ * write an admin might want belongs to another owner (see
+ * `customer-admin.service.ts`). */
+export {
+  listCustomersForAdmin,
+  getCustomerForAdmin,
+  type CustomerListQuery,
+  type CustomerListItem,
+  type CustomerDetail,
+  type CustomerAddressView,
+  type CustomerSort,
+  type PaginatedCustomers,
+} from './customer-admin.service';
+
 export {
   queueEmailVerificationEmail,
   createEmailVerificationToken,

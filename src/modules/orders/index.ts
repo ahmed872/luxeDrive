@@ -39,6 +39,8 @@ export {
   type AdminOrderQuery,
   type AdminOrderSort,
   type Paginated,
+  getOrderStatsForCustomers,
+  type CustomerOrderStats,
 } from './order-queries';
 
 export {

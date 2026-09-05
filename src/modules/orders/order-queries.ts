@@ -421,3 +421,71 @@ export async function getOrderIdByNumber(number: string): Promise<string | null>
   const order = await db.order.findUnique({ where: { number }, select: { id: true } });
   return order?.id ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Per-customer roll-up (P15)
+// ---------------------------------------------------------------------------
+
+export interface CustomerOrderStats {
+  customerId: string;
+  orderCount: number;
+  /** Money actually taken, in minor units — `PAID` orders only. An order
+   * that is placed but unpaid, or cancelled, is not "what this customer has
+   * spent", and adding it to a lifetime-value column is how that column
+   * stops meaning anything. */
+  paidTotalMinor: number;
+  lastOrderAt: Date | null;
+}
+
+/**
+ * Order counts and spend for a page of customers, in one query rather than
+ * one per row.
+ *
+ * Lives in `orders` and not in `customers` because it reads the order
+ * tables, and `customers` may not depend on this module (the enforced
+ * graph: `customers → core, identity, catalog`). The admin's customer
+ * directory joins the two above both — see
+ * `src/lib/admin/customer-directory.ts`.
+ *
+ * Currency is deliberately absent from the result: `Order.currency` is
+ * per-order, and summing across currencies would be wrong. Every order in
+ * this store is placed in the store's one configured currency (settings),
+ * so the caller labels the total with that rather than this pretending to
+ * have resolved a mix it cannot.
+ */
+export async function getOrderStatsForCustomers(
+  customerIds: string[],
+): Promise<Map<string, CustomerOrderStats>> {
+  const stats = new Map<string, CustomerOrderStats>();
+  if (customerIds.length === 0) return stats;
+
+  const [counts, paid] = await Promise.all([
+    db.order.groupBy({
+      by: ['customerId'],
+      where: { customerId: { in: customerIds } },
+      _count: { _all: true },
+      _max: { placedAt: true },
+    }),
+    db.order.groupBy({
+      by: ['customerId'],
+      where: { customerId: { in: customerIds }, paymentStatus: 'PAID' },
+      _sum: { totalMinor: true },
+    }),
+  ]);
+
+  const paidByCustomer = new Map(
+    paid.map((row) => [row.customerId ?? '', row._sum.totalMinor ?? 0]),
+  );
+
+  for (const row of counts) {
+    if (!row.customerId) continue;
+    stats.set(row.customerId, {
+      customerId: row.customerId,
+      orderCount: row._count._all,
+      paidTotalMinor: paidByCustomer.get(row.customerId) ?? 0,
+      lastOrderAt: row._max.placedAt,
+    });
+  }
+
+  return stats;
+}
