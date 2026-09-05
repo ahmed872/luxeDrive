@@ -1,7 +1,14 @@
 import { test as base } from '@playwright/test';
 import type { Browser, BrowserContext } from '@playwright/test';
 
-import { E2E_MANAGER, E2E_OWNER, E2E_STAFF, E2E_USERS_OWNER } from './admin-credentials';
+import {
+  E2E_ANALYTICS_OWNER,
+  E2E_CONTENT_OWNER,
+  E2E_MANAGER,
+  E2E_OWNER,
+  E2E_STAFF,
+  E2E_USERS_OWNER,
+} from './admin-credentials';
 
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
 
@@ -55,6 +62,8 @@ let ownerStatePromise: Promise<StorageState> | undefined;
 let staffStatePromise: Promise<StorageState> | undefined;
 let managerStatePromise: Promise<StorageState> | undefined;
 let usersOwnerStatePromise: Promise<StorageState> | undefined;
+let contentOwnerStatePromise: Promise<StorageState> | undefined;
+let analyticsOwnerStatePromise: Promise<StorageState> | undefined;
 
 // Playwright's fixture callback is conventionally named `use`, which is
 // also React's hook name — ESLint's `react-hooks` rule (applied globally by
@@ -66,6 +75,8 @@ export const test = base.extend<{
   staffContext: BrowserContext;
   managerContext: BrowserContext;
   usersOwnerContext: BrowserContext;
+  contentOwnerContext: BrowserContext;
+  analyticsOwnerContext: BrowserContext;
 }>({
   ownerContext: async ({ browser }, provide) => {
     ownerStatePromise ??= loginAndCaptureState(browser, E2E_OWNER);
@@ -93,6 +104,22 @@ export const test = base.extend<{
   usersOwnerContext: async ({ browser }, provide) => {
     usersOwnerStatePromise ??= loginAndCaptureState(browser, E2E_USERS_OWNER);
     const context = await browser.newContext({ storageState: await usersOwnerStatePromise });
+    await blockOffOriginRequests(context);
+    await provide(context);
+    await context.close();
+  },
+  /** Homepage content's own owner (P15) — same rate-limit reasoning. */
+  contentOwnerContext: async ({ browser }, provide) => {
+    contentOwnerStatePromise ??= loginAndCaptureState(browser, E2E_CONTENT_OWNER);
+    const context = await browser.newContext({ storageState: await contentOwnerStatePromise });
+    await blockOffOriginRequests(context);
+    await provide(context);
+    await context.close();
+  },
+  /** Reporting's own owner (P15) — same rate-limit reasoning. */
+  analyticsOwnerContext: async ({ browser }, provide) => {
+    analyticsOwnerStatePromise ??= loginAndCaptureState(browser, E2E_ANALYTICS_OWNER);
+    const context = await browser.newContext({ storageState: await analyticsOwnerStatePromise });
     await blockOffOriginRequests(context);
     await provide(context);
     await context.close();

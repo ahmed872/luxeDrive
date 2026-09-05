@@ -4,11 +4,15 @@
  * May depend on: core, media, catalog
  * Must not depend on: orders, cart, payments
  *
- * P05: the storefront read side — `getPublishedHomepageSections()` renders
- * only published, enabled sections (`HomepageSection.config`, never
+ * P05 built the storefront read side — `getPublishedHomepageSections()`
+ * renders only published, enabled sections (`HomepageSection.config`, never
  * `draftConfig`), with every referenced category/product/media id already
- * resolved. Admin CMS editing (writing sections, draft/publish workflow)
- * lands in a later phase; nothing here builds one.
+ * resolved.
+ *
+ * P15 adds the admin write side the Content screen edits it through:
+ * create, edit, reorder, enable/disable, draft and publish. The two halves
+ * meet at the same two columns and nowhere else — the read side still never
+ * touches `draftConfig`, so an unpublished edit has no path to a visitor.
  *
  * Other modules import `@/modules/content`, never a file inside it.
  */
@@ -28,3 +32,19 @@ export {
 } from './homepage.service';
 
 export { sectionConfigSchemas, type SectionConfig } from './section-schemas';
+
+/** Admin (P15) — the authoring side of the same rows. */
+export {
+  listHomepageSections,
+  getHomepageSection,
+  createHomepageSection,
+  updateHomepageSectionConfig,
+  publishHomepageSectionDraft,
+  discardHomepageSectionDraft,
+  setHomepageSectionEnabled,
+  deleteHomepageSection,
+  reorderHomepageSections,
+  getSectionHeadline,
+  type HomepageSectionRecord,
+  type CreateHomepageSectionInput,
+} from './section-admin.service';

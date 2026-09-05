@@ -38,7 +38,7 @@ test.describe('unauthenticated direct access', () => {
 });
 
 test.describe('authenticated but unauthorized direct access (permission-aware, server-enforced)', () => {
-  test('STAFF signed in, typing /admin/settings directly, never sees the settings placeholder content', async ({
+  test('STAFF signed in, typing /admin/settings directly, never sees the settings screen', async ({
     staffContext,
   }) => {
     const page = await staffContext.newPage();
@@ -54,10 +54,11 @@ test.describe('authenticated but unauthorized direct access (permission-aware, s
     const response = await page.goto('/admin/settings');
     // Whatever status Next's default error handling assigns a thrown
     // FORBIDDEN, the protected content itself must never have rendered.
+    // (Until P15 this asserted on the shared "being built" placeholder that
+    // used to stand in for Settings; the real screen is what must not
+    // appear now.)
     expect(response?.ok()).toBeFalsy();
-    await expect(page.getByText(/This section is being built|هذا القسم قيد الإنشاء/)).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole('heading', { name: /^(Settings|الإعدادات)$/ })).toHaveCount(0);
   });
 
   test('STAFF signed in, typing /admin/users directly (Super-Admin-only), never sees it either', async ({

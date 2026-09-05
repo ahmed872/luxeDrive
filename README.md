@@ -21,14 +21,26 @@ their account when they create one.
 
 **Admin** (`/admin`) — sign-in with real server-side sessions and
 role-based access control, then products and variants, categories, brands,
-inventory, pricing, promotions and coupons, orders, and staff/user
-administration.
+inventory, pricing, promotions and coupons, orders, customers, store
+settings, and staff/user administration. Every section in the sidebar is a
+real screen; there is no "coming soon" page left in the admin.
 
-**Not built, deliberately.** Four admin areas — customers, content,
-analytics and settings — have a permission, a nav entry and a plainly
-labelled "this section is being built" page rather than an empty screen or
-a fake one. Each is a whole domain no phase has claimed. See
-[docs/architecture.md](docs/architecture.md).
+**Homepage content** (`/admin/content`) — the store owner builds their own
+homepage: ten section types (hero, banner, featured categories and
+products, new arrivals, best sellers, active offers, testimonials, trust
+blocks, custom promo), each with a real form in both languages rather than
+a JSON box, plus ordering, show/hide, and a draft that visitors never see
+until it is published. Until this existed the homepage could only be
+populated by a development seed script, which is why a deployed store
+showed "no content has been published yet".
+
+**Analytics** (`/admin/analytics`) — paid revenue, orders, average order
+value, units sold and new customers over a chosen period, with revenue by
+day, best sellers, order-status breakdown, coupon usage and refund counts.
+Built only on data the platform genuinely records: it does not net refunds
+out of revenue (no refund amount is stored) and ships no "views" metric
+(nothing writes the view tables), and the screen says so instead of
+showing a number that would always be zero.
 
 ## Stack
 
@@ -65,6 +77,12 @@ BOOTSTRAP_ADMIN_PASSWORD="a real password, 12+ chars" pnpm db:create-admin
 pnpm db:migrate-cars          # legacy/src/data/cars.json → the catalog
 pnpm db:seed-storefront-demo  # publish it, add Arabic copy, seed the homepage
 ```
+
+Both are development conveniences, not a deployment step. A real store
+never runs the second one: it builds its homepage at `/admin/content` and
+publishes its products from `/admin/products` — a newly created product is
+a **draft**, and a draft appears nowhere in the storefront until it is
+published.
 
 Full environment setup — including the test database, the extra variables
 both test suites need, and the production variables — is in

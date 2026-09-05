@@ -67,26 +67,47 @@ Two rules matter more than the rest:
   for sale; it must not learn about selling. Breaking this is how a product
   model ends up with order-shaped fields.
 - **`analytics` never writes.** Reporting that mutates is how numbers stop
-  matching reality.
+  matching reality. This one is not left to code review:
+  `analytics/read-only.test.ts` runs every exported query against a Proxy
+  over the database client that throws on any write method, `$executeRaw*`
+  or `$transaction`, and separately greps the module's own source for a
+  write call. Both halves were verified by adding a deliberate write and
+  watching them fail.
 
 ### What each module actually holds today
 
-Every module above owns a real, used implementation, with three exceptions
-worth naming rather than leaving to be discovered:
+As of P15 every module above owns a real, used implementation. Three are
+worth describing rather than leaving to be discovered:
 
-- **`analytics` is a boundary and nothing else.** It exports nothing. No
-  phase has built reporting, and the module says so in its own `index.ts`
-  rather than shipping a function that returns invented numbers.
-- **`content` and `settings` are read-only.** The storefront reads homepage
-  sections and store settings; nothing writes either through the admin.
-  Their values are set by the seed script or directly in the database.
+- **`analytics` reports only what the database actually records.** Revenue,
+  average order value and units sold come from orders whose `paymentStatus`
+  is `PAID`; the daily series is grouped in SQL by UTC day. Two things it
+  deliberately does _not_ do: it never nets refunds out of revenue (the
+  schema stores _that_ an order was refunded, never _how much_, so it
+  reports refunded-order counts instead), and it ships no "views" metric —
+  `ProductView` and `DailyProductStats` exist in the schema and nothing
+  anywhere writes to them, so such a panel would read zero forever. The
+  admin screen states both in a methodology note rather than letting a
+  reader assume otherwise.
+- **`content` and `settings` are read-write.** Both were read-only until
+  P15, with values set by the seed script or by hand in the database. The
+  homepage in particular could therefore only ever be populated by
+  `db:seed-storefront-demo` — which meant a real deployment's homepage was
+  empty by construction. `/admin/content` is what fixed that: create, edit,
+  reorder, enable/disable and draft/publish for `HomepageSection`, with the
+  storefront read path (`getPublishedHomepageSections`) still reading
+  `config` and never `draftConfig`, so an unpublished edit has no path to a
+  visitor.
 - **`search` is Postgres-backed** behind a provider interface, so a real
   search service can replace it without touching `catalog`.
 
-The four admin sections with no screen (`customers`, `content`, `analytics`,
-`settings`) line up with the first two of those: a permission and a nav
-entry exist, and the URL renders an honest "being built" page that still
-runs the same server-side permission check every real admin route does.
+Every admin section now has a screen of its own, and the shared "this
+section is being built" placeholder at `/admin/[section]` is gone with the
+last of them. The invariant it used to provide lives in
+`lib/admin/nav-config.test.ts`: a slug added to `ADMIN_SECTIONS` without a
+route fails the test suite, which is earlier and louder than a placeholder
+page nobody would have visited. Every admin URL still runs
+`requirePermission` in its own page.
 
 ### Enforcement
 

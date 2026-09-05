@@ -11,13 +11,18 @@ import { getAdminDictionary } from '@/lib/i18n/admin-dictionary';
  * full permission set from day one so each later phase only had to build
  * the pages, never re-derive who may see them.
  *
- * Most of these now point at real management screens (P07–P11, and `users`
- * in P14). The four that do not — `customers`, `content`, `analytics`,
- * `settings` — fall through to the shared, honest "coming soon" placeholder
- * at `/admin/[section]`; see that file's own comment for why it stays
- * rather than being deleted or faked. Either way the URL calls
- * `requirePermission` itself: a role that can't see a link server-side
- * can't reach it by typing the URL either (P06 §7/§17).
+ * As of P15 every entry below points at a real management screen, and the
+ * shared "this section is being built" placeholder that used to catch the
+ * unbuilt ones (`/admin/[section]`) is gone with them — a catch-all whose
+ * only remaining job would be to say something false about a section that
+ * exists. `nav-config.test.ts` now holds the invariant it used to cover:
+ * adding a slug here without building its route fails the test suite,
+ * which is a louder and earlier signal than a placeholder page nobody
+ * would have visited.
+ *
+ * Every one of these URLs calls `requirePermission` in its own page: a role
+ * that can't see a link server-side can't reach it by typing the URL either
+ * (P06 §7/§17).
  */
 export interface AdminSection {
   slug: string;

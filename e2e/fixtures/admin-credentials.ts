@@ -55,3 +55,25 @@ export const E2E_USERS_OWNER = {
   email: 'e2e-users-owner@example.com',
   password: 'E2eUsersOwnerPass123',
 };
+
+/**
+ * A fourth and fifth OWNER, for content and analytics (P15).
+ *
+ * Same reasoning as `E2E_USERS_OWNER` above, two buckets further along.
+ * P06's login rate limiter buckets by `ip:email` at ten attempts per five
+ * minutes, every e2e login comes from the same loopback address, and each
+ * new spec file that leans on an existing owner account is what pushes that
+ * account's bucket over — at which point a rate limiter doing its job reads
+ * as an unrelated accessibility test failing to load a page. One account
+ * per spec file, one bucket each; the limit itself is a real defence and is
+ * not being loosened to make tests pass.
+ */
+export const E2E_CONTENT_OWNER = {
+  email: 'e2e-content-owner@example.com',
+  password: 'E2eContentOwnerPass123',
+};
+
+export const E2E_ANALYTICS_OWNER = {
+  email: 'e2e-analytics-owner@example.com',
+  password: 'E2eAnalyticsOwnerPass123',
+};

@@ -1,3 +1,6 @@
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { ADMIN_SECTIONS, buildAdminNavSections, getAdminSection } from './nav-config';
@@ -13,6 +16,31 @@ describe('ADMIN_SECTIONS', () => {
   it('getAdminSection finds a known slug and rejects an unknown one', () => {
     expect(getAdminSection('products')?.permission).toBe('products.read');
     expect(getAdminSection('nonexistent-section')).toBeUndefined();
+  });
+
+  /**
+   * The invariant the deleted `/admin/[section]` placeholder used to cover.
+   *
+   * Until P15 an unbuilt section fell through to a shared "being built"
+   * page. Every section now has a real screen, so that catch-all is gone —
+   * which means a slug added here without a route would 404 for whoever
+   * clicked the sidebar link. This fails first instead.
+   */
+  it('every section in the sidebar has a route of its own', () => {
+    const shell = join(process.cwd(), 'src/app/admin/(shell)');
+    const routes = new Set(
+      readdirSync(shell, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name),
+    );
+
+    const missing = ADMIN_SECTIONS.filter((section) => !routes.has(section.slug));
+    expect(missing.map((section) => section.slug)).toEqual([]);
+  });
+
+  it('no longer relies on a catch-all placeholder route', () => {
+    const shell = join(process.cwd(), 'src/app/admin/(shell)');
+    expect(readdirSync(shell)).not.toContain('[section]');
   });
 });
 

@@ -38,6 +38,19 @@ export interface QueryToolbarSelect {
   options: QueryToolbarOption[];
   /** Sorts have no "all" — one option is always in effect. */
   includeAll?: boolean;
+  /**
+   * Which option is in effect when the URL carries no value for this key.
+   * Only meaningful with `includeAll: false`, where *something* is always
+   * selected.
+   *
+   * Without it the control falls back to the first option, which is right
+   * only as long as the page's own default happens to be listed first —
+   * a coupling that is invisible at the call site and silently makes the
+   * control report a state the server did not use (and, because the value
+   * never changes, makes selecting that option do nothing at all). Pass the
+   * page's real default and the two cannot drift.
+   */
+  defaultValue?: string;
 }
 
 export interface QueryToolbarDate {
@@ -143,21 +156,17 @@ export function QueryToolbar({
 
       {selects.map((select) => {
         const includeAll = select.includeAll !== false;
-        const current = searchParams.get(select.key) ?? (includeAll ? ALL : undefined);
+        const fallback = includeAll ? ALL : (select.defaultValue ?? select.options[0]?.value);
+        const current = searchParams.get(select.key) ?? fallback;
         const currentLabel = current && current !== ALL ? labelFor(select.options, current) : null;
         return (
           <div key={select.key} className="flex min-w-40 flex-col gap-1">
             <label htmlFor={`filter-${select.key}`} className="sr-only">
               {select.label}
             </label>
-            <Select
-              value={current ?? select.options[0]?.value}
-              onValueChange={(value) => apply({ [select.key]: value })}
-            >
+            <Select value={current} onValueChange={(value) => apply({ [select.key]: value })}>
               <SelectTrigger id={`filter-${select.key}`} aria-label={select.label}>
-                <SelectValue>
-                  {currentLabel ?? (includeAll ? select.label : select.options[0]?.label)}
-                </SelectValue>
+                <SelectValue>{currentLabel ?? select.label}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {includeAll ? <SelectItem value={ALL}>{labels.allOption}</SelectItem> : null}
