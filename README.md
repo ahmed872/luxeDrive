@@ -1,353 +1,142 @@
-# LuxeDrive - Premium Luxury Car Dealership Website
+# LuxeDrive
 
-A fully responsive, premium-quality car dealership website built with React, TailwindCSS, and Framer Motion. This project showcases a modern, luxurious design with a Royal Blue & Metallic Silver theme and Golden accent highlights.
+A production-grade, general-purpose e-commerce platform: the store owner runs
+the catalog, offers, orders and storefront content without a developer, and
+cars are one kind of product rather than the shape of the system.
 
-## 🌟 Features
+> **Status: code-complete, pending production provisioning.** The storefront,
+> the customer account, checkout, the payment boundary, the admin panel and
+> transactional email are all built and tested. What remains is not code —
+> it is a database, a bucket, an SMTP account and a deployment. See
+> [docs/environments.md](docs/environments.md#production-configuration-checklist-p14).
 
-### Public-Facing Features
+## What is built
 
-- **Home Page**
-  - Full-width hero section with luxury car imagery
-  - Special offers and coupon banners
-  - Featured cars carousel
-  - Customer testimonials
-  - Why Choose Us section
-  - Call-to-action sections
+**Storefront** (`/ar/…`, `/en/…`) — bilingual and RTL-aware throughout, in
+light and dark themes: home, category and product pages, search, cart,
+checkout, order confirmation and a payment step, plus customer accounts
+(register, verify email, sign in, profile, order history, password reset).
+A guest can shop and check out without an account; their cart merges into
+their account when they create one.
 
-- **Cars Listing Page**
-  - Grid layout with card-style car displays
-  - Advanced filtering (brand, year, price range, fuel type)
-  - Search functionality with live filtering
-  - Sort options (price, year, featured)
-  - Pagination
-  - Responsive design
+**Admin** (`/admin`) — sign-in with real server-side sessions and
+role-based access control, then products and variants, categories, brands,
+inventory, pricing, promotions and coupons, orders, and staff/user
+administration.
 
-- **Car Details Page**
-  - Large image carousel (3-5 photos per car)
-  - Complete vehicle specifications
-  - Coupon application with price calculation
-  - "Buy Now" checkout flow
-  - Contact seller buttons (WhatsApp & Email)
-  - Related cars section
+**Not built, deliberately.** Four admin areas — customers, content,
+analytics and settings — have a permission, a nav entry and a plainly
+labelled "this section is being built" page rather than an empty screen or
+a fake one. Each is a whole domain no phase has claimed. See
+[docs/architecture.md](docs/architecture.md).
 
-- **Checkout Page**
-  - Simple checkout form
-  - Order summary with car details
-  - Coupon discount display
-  - Confirmation message
+## Stack
 
-- **About Us Page**
-  - Company history timeline
-  - Team member profiles
-  - Mission & Vision statements
-  - Awards and certifications
-  - Company statistics
+|            |                                                          |
+| ---------- | -------------------------------------------------------- |
+| Framework  | Next.js (App Router), React, SSR + ISR                   |
+| Language   | TypeScript, strict                                       |
+| Styling    | Tailwind v4 with design tokens, shadcn/ui foundation     |
+| Database   | PostgreSQL + Prisma (driver adapter)                     |
+| Auth       | Auth.js — two separate instances, admin and storefront   |
+| Validation | Zod, shared between server and client                    |
+| Tests      | Vitest (unit + integration), Playwright (e2e, axe)       |
+| Hosting    | Vercel + managed PostgreSQL + S3-compatible object store |
 
-- **Contact Page**
-  - Contact form
-  - Google Maps integration
-  - Business hours
-  - Multiple contact methods
-  - WhatsApp quick chat
+## Getting started
 
-- **Coupons Page**
-  - Active and expired coupons display
-  - Copy-to-clipboard functionality
-  - Expiry date tracking
-  - Color-coded status indicators
-
-### Admin Features
-
-- **Admin Dashboard**
-  - Quick statistics overview
-  - Analytics charts (Recharts)
-  - Recent activity feed
-  - Quick action buttons
-
-- **Manage Cars**
-  - View all cars in table format
-  - Add/Edit/Delete functionality (UI only)
-  - Featured status management
-
-- **Manage Coupons**
-  - View all coupons
-  - Add/Edit/Delete functionality (UI only)
-  - Active/Inactive status toggle
-
-- **Analytics**
-  - Monthly performance charts
-  - Sales by brand pie chart
-  - Coupon usage statistics
-  - Key performance indicators
-
-### Global Features
-
-- **Responsive Design** - Mobile, tablet, and desktop optimized
-- **Framer Motion Animations** - Smooth page transitions and hover effects
-- **WhatsApp Integration** - Fixed floating button for instant chat
-- **Language Toggle** - English/Arabic support (UI ready)
-- **SEO Optimized** - Meta tags and Open Graph support
-- **Modern UI/UX** - Clean, elegant design with luxury aesthetic
-
-## 🛠️ Tech Stack
-
-- **React 18** - Modern React with hooks
-- **React Router DOM** - Client-side routing
-- **TailwindCSS** - Utility-first CSS framework
-- **Framer Motion** - Animation library
-- **shadcn/ui** - High-quality UI components
-- **Lucide Icons** - Beautiful icon set
-- **Recharts** - Chart library for analytics
-- **Axios** - HTTP client (ready for backend integration)
-- **Vite** - Fast build tool and dev server
-
-## 📁 Project Structure
-
-```
-car-dealership/
-├── public/                 # Static assets
-├── src/
-│   ├── assets/            # Images and media files
-│   ├── components/        # Reusable components
-│   │   ├── ui/           # shadcn/ui components
-│   │   ├── Navbar.jsx
-│   │   ├── Footer.jsx
-│   │   ├── CarCard.jsx
-│   │   ├── Loading.jsx
-│   │   └── WhatsAppButton.jsx
-│   ├── context/          # React Context for state management
-│   │   └── AppContext.jsx
-│   ├── data/             # Mock JSON data
-│   │   ├── cars.json
-│   │   ├── coupons.json
-│   │   └── testimonials.json
-│   ├── pages/            # Page components
-│   │   ├── Home.jsx
-│   │   ├── Cars.jsx
-│   │   ├── CarDetails.jsx
-│   │   ├── Checkout.jsx
-│   │   ├── About.jsx
-│   │   ├── Contact.jsx
-│   │   ├── Coupons.jsx
-│   │   └── admin/        # Admin pages
-│   │       ├── AdminLogin.jsx
-│   │       ├── AdminDashboard.jsx
-│   │       ├── ManageCars.jsx
-│   │       ├── ManageCoupons.jsx
-│   │       └── Analytics.jsx
-│   ├── utils/            # Utility functions
-│   │   └── formatters.js
-│   ├── App.css           # Global styles
-│   ├── App.jsx           # Main app component
-│   └── main.jsx          # Entry point
-├── index.html            # HTML template
-├── package.json          # Dependencies
-└── README.md            # This file
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+ installed
-- pnpm package manager (or npm/yarn)
-
-### Installation
-
-1. Clone the repository or extract the project files
-
-2. Install dependencies:
-```bash
-pnpm install
-# or
-npm install
-```
-
-3. Start the development server:
-```bash
-pnpm run dev
-# or
-npm run dev
-```
-
-4. Open your browser and navigate to:
-```
-http://localhost:5173
-```
-
-### Building for Production
+Requires Node 20.11+, pnpm 10, and a local PostgreSQL 16.
 
 ```bash
-pnpm run build
-# or
-npm run build
+pnpm install                 # generates the Prisma client via postinstall
+cp .env.example .env         # then set DATABASE_URL and the secrets it names
+
+pnpm db:migrate              # apply migrations
+pnpm db:smoke                # prove the connection and typed client work
+pnpm dev                     # http://localhost:3000
 ```
 
-The optimized production build will be in the `dist` folder.
-
-### Preview Production Build
+Then create the first admin account and, optionally, load the demo catalog:
 
 ```bash
-pnpm run preview
-# or
-npm run preview
+BOOTSTRAP_ADMIN_EMAIL="you@example.com" \
+BOOTSTRAP_ADMIN_PASSWORD="a real password, 12+ chars" pnpm db:create-admin
+
+pnpm db:migrate-cars          # legacy/src/data/cars.json → the catalog
+pnpm db:seed-storefront-demo  # publish it, add Arabic copy, seed the homepage
 ```
 
-## 🎨 Design System
+Full environment setup — including the test database, the extra variables
+both test suites need, and the production variables — is in
+[docs/environments.md](docs/environments.md).
 
-### Color Palette
+## Commands
 
-- **Primary Blue**: `#2563eb` to `#1e40af` (Royal Blue gradient)
-- **Accent Gold**: `#f59e0b` to `#d97706` (Golden highlights)
-- **Neutral Gray**: `#f9fafb` to `#111827` (Backgrounds and text)
-- **Success Green**: `#10b981`
-- **Warning Yellow**: `#f59e0b`
+| Command           | What it does                                     |
+| ----------------- | ------------------------------------------------ |
+| `pnpm dev`        | development server                               |
+| `pnpm build`      | production build                                 |
+| `pnpm verify`     | typecheck → lint → test → build (what CI runs)   |
+| `pnpm typecheck`  | TypeScript, no emit                              |
+| `pnpm lint`       | ESLint, including module boundary rules          |
+| `pnpm format`     | Prettier                                         |
+| `pnpm test`       | unit and integration tests (needs the test DB)   |
+| `pnpm test:e2e`   | Playwright — journeys, axe, visual regression    |
+| `pnpm db:migrate` | create and apply a migration (development)       |
+| `pnpm db:deploy`  | apply existing migrations (test, production)     |
+| `pnpm db:smoke`   | verify the database connection end to end        |
+| `pnpm db:backup`  | logical backup — see docs/backup-and-recovery.md |
 
-### Typography
+`pnpm test` and `pnpm test:e2e` both need a few variables beyond
+`.env.example`'s production-shaped defaults, and the e2e suite needs the
+demo catalog seeded — see
+[docs/environments.md](docs/environments.md#running-the-test-suites-p14).
 
-- **Headings**: Poppins font family
-- **Body**: Inter font family
-- **Monospace**: For coupon codes
+## Documentation
 
-### Border Radius
+- [Architecture](docs/architecture.md) — repository layout, the fifteen
+  modules, how the dependency rules are enforced.
+- [Environments and secrets](docs/environments.md) — development, test and
+  production separation, why no secret can reach the browser, what a real
+  production deploy has to provision, and what changes once the application
+  runs as more than one instance.
+- [Backup and recovery](docs/backup-and-recovery.md) — what is backed up, how
+  to restore, and the restore drill.
 
-- Small: `0.625rem`
-- Medium: `0.75rem`
-- Large: `1rem`
-- Extra Large: `1.25rem`
+## Security posture, in one paragraph
 
-## 📱 Responsive Breakpoints
+Every admin and account boundary is checked on the server, in the Server
+Action or Server Component itself — a hidden button is never treated as
+authorization, and the test suite calls those boundaries directly rather
+than through the UI to prove it. Sessions are JWT-transported but
+database-backed, so a role change, a disable, or a revocation takes effect
+on the account's next request rather than at token expiry. Money, stock and
+order totals are derived server-side from data the client cannot name;
+checkout accepts no price, no total and no cart id. Payment outcomes move
+only on an HMAC-verified webhook. Server-only environment access is enforced
+by the build, and CI greps the client bundle for the database password on
+every push.
 
-- **Mobile**: < 768px
-- **Tablet**: 768px - 1024px
-- **Desktop**: > 1024px
+## The legacy application
 
-## 🔐 Admin Access
+The original Vite single-page app lives in [`legacy/`](legacy/), untouched.
+It is excluded from every build, lint and test, and is kept as a visual and
+behavioural reference:
 
-**Demo Credentials:**
-- Username: `admin`
-- Password: `admin123`
-
-Access the admin panel at: `/admin/login`
-
-## 🌐 Backend Integration
-
-The frontend is ready for backend integration. Here's what you need to know:
-
-### API Endpoints (To Be Implemented)
-
-```javascript
-// Cars
-GET    /api/cars           // Get all cars
-GET    /api/cars/:id       // Get car by ID
-POST   /api/cars           // Create new car
-PUT    /api/cars/:id       // Update car
-DELETE /api/cars/:id       // Delete car
-
-// Coupons
-GET    /api/coupons        // Get all coupons
-POST   /api/coupons        // Create coupon
-PUT    /api/coupons/:id    // Update coupon
-DELETE /api/coupons/:id    // Delete coupon
-POST   /api/coupons/apply  // Apply coupon
-
-// Contact
-POST   /api/contact        // Submit contact form
-
-// Checkout
-POST   /api/checkout       // Submit purchase inquiry
+```bash
+cd legacy && pnpm install && pnpm dev
 ```
 
-### Data Structure
+Its `cars.json` is still the source the demo catalog is migrated from
+(`pnpm db:migrate-cars`), which is why it is still here. The pre-rebuild
+state is also tagged `pre-rebuild-reference`.
 
-All mock data is stored in `src/data/` directory:
-- `cars.json` - Car inventory
-- `coupons.json` - Discount coupons
-- `testimonials.json` - Customer reviews
+## Admin access
 
-Replace the Context API calls with actual API calls using Axios.
-
-## 🎯 Key Features Implementation
-
-### Coupon System
-
-The coupon system is fully functional on the frontend:
-- Validates coupon codes
-- Checks expiry dates
-- Calculates discounts
-- Updates final price
-
-### Filtering & Search
-
-Advanced filtering system with:
-- Multi-criteria filtering
-- Real-time search
-- Price range selection
-- Sort options
-
-### Animations
-
-Framer Motion animations include:
-- Page transitions
-- Scroll-triggered animations
-- Hover effects
-- Loading states
-
-## 📦 Deployment
-
-### Vercel (Recommended)
-
-1. Push your code to GitHub
-2. Import project in Vercel
-3. Deploy with one click
-
-### Netlify
-
-1. Build the project: `pnpm run build`
-2. Drag and drop the `dist` folder to Netlify
-3. Configure redirects for SPA routing
-
-### Custom Server
-
-1. Build: `pnpm run build`
-2. Serve the `dist` folder with any static file server
-3. Configure server for SPA routing (redirect all routes to index.html)
-
-## 🔧 Customization
-
-### Changing Colors
-
-Edit `src/App.css` to modify the color scheme:
-
-```css
-:root {
-  --primary: oklch(...);  /* Change primary color */
-  --accent: oklch(...);   /* Change accent color */
-}
-```
-
-### Adding New Cars
-
-Edit `src/data/cars.json` and add new car objects following the existing structure.
-
-### Modifying Mock Data
-
-All mock data is in the `src/data/` directory. Edit JSON files to customize content.
-
-## 🐛 Known Issues
-
-- Select component shows a warning in console (does not affect functionality)
-- Admin CRUD operations are UI-only (need backend integration)
-
-## 📄 License
-
-This project is created for demonstration purposes.
-
-## 🤝 Support
-
-For questions or issues, please contact the development team.
-
----
-
-**Built with ❤️ using React, TailwindCSS, and Framer Motion**
-
+There is no default admin account, and no credential anywhere in source
+control, seed data or the UI. The first account is created once, by hand,
+with `pnpm db:create-admin`, from environment variables the running
+application never reads. (The original build hardcoded credentials in
+client-side JavaScript and printed them on the login page; they were removed
+in P00 and have not come back.) After that, an owner adds and manages the
+rest of the team at `/admin/users`.
