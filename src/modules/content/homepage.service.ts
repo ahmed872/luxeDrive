@@ -333,3 +333,66 @@ export async function getPublishedHomepageSections(
 
   return views;
 }
+
+/**
+ * What the homepage shows when the store owner has not built one yet.
+ *
+ * A store with published products used to greet its customers with "no
+ * homepage content has been published yet" — an admin's problem, phrased at
+ * the shopper, on the one page that decides whether they stay. The owner
+ * can now build a real homepage at `/admin/content`, but until they do,
+ * showing them their own products is both truer and more useful than
+ * showing them a notice.
+ *
+ * These are synthesized views, not stored rows: nothing is written, the
+ * admin's Content screen stays empty (because it *is* empty), and the
+ * moment a real section is published this stops being used. So it is a
+ * fallback, never a hidden default the owner cannot see or change.
+ *
+ * If the store genuinely has nothing published, this returns nothing and
+ * the honest empty state stands.
+ */
+const FALLBACK_PRODUCT_LIMIT = 8;
+
+export async function buildFallbackHomepageSections(
+  locale: 'ar' | 'en' = 'ar',
+): Promise<HomepageSectionView[]> {
+  const [newest, categoryRows] = await Promise.all([
+    listProducts({ sort: 'newest', pageSize: FALLBACK_PRODUCT_LIMIT }, locale),
+    db.category.findMany({ orderBy: { position: 'asc' } }),
+  ]);
+
+  if (newest.items.length === 0) return [];
+
+  const sections: HomepageSectionView[] = [
+    {
+      id: 'fallback-new-arrivals',
+      type: 'NEW_ARRIVALS',
+      titleAr: 'أحدث المنتجات',
+      titleEn: 'Latest products',
+      products: newest.items,
+    },
+  ];
+
+  // One category is not a choice worth rendering a grid for — it would just
+  // repeat the link already in the header.
+  if (categoryRows.length > 1) {
+    sections.push({
+      id: 'fallback-categories',
+      type: 'FEATURED_CATEGORIES',
+      titleAr: 'تسوّق حسب الفئة',
+      titleEn: 'Shop by category',
+      categories: await Promise.all(
+        categoryRows.map(async (category) => ({
+          id: category.id,
+          slug: category.slug,
+          nameAr: category.nameAr,
+          nameEn: category.nameEn,
+          image: category.imageMediaId ? await resolveImage(category.imageMediaId, locale) : null,
+        })),
+      ),
+    });
+  }
+
+  return sections;
+}

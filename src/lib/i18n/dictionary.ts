@@ -10,6 +10,14 @@ import type { Locale } from './locales';
  */
 export const dictionary = {
   ar: {
+    /** The storefront footer. */
+    footerSection: {
+      contact: 'تواصل معنا',
+      whatsapp: 'واتساب',
+      email: 'البريد الإلكتروني',
+      phone: 'الهاتف',
+      address: 'العنوان',
+    },
     nav: {
       home: 'الرئيسية',
       allCategories: 'كل الفئات',
@@ -423,6 +431,14 @@ export const dictionary = {
     },
   },
   en: {
+    /** The storefront footer. */
+    footerSection: {
+      contact: 'Contact us',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      phone: 'Phone',
+      address: 'Address',
+    },
     nav: {
       home: 'Home',
       allCategories: 'All Categories',

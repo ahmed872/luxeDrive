@@ -19,6 +19,7 @@
 
 export {
   getPublishedHomepageSections,
+  buildFallbackHomepageSections,
   TRUST_BLOCK_ICONS,
   type HomepageSectionView,
   type HeroSectionView,

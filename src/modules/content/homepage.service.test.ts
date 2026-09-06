@@ -4,7 +4,7 @@ import { db } from '@/modules/core';
 import { createCategory, createProduct, publishProduct } from '@/modules/catalog';
 import { resetCatalogTables } from '@/modules/catalog/testing';
 
-import { getPublishedHomepageSections } from './homepage.service';
+import { buildFallbackHomepageSections, getPublishedHomepageSections } from './homepage.service';
 
 beforeEach(async () => {
   await db.homepageSection.deleteMany();
@@ -177,5 +177,87 @@ describe('getPublishedHomepageSections', () => {
     if (section.type !== 'TRUST_BLOCKS') throw new Error('expected TRUST_BLOCKS');
     expect(section.items[0]?.icon).toBe('Truck');
     expect(section.items[1]?.icon).toBe('BadgeCheck');
+  });
+});
+
+describe('buildFallbackHomepageSections', () => {
+  it('returns nothing when the store has nothing published, so the honest empty state stands', async () => {
+    expect(await buildFallbackHomepageSections('en')).toEqual([]);
+  });
+
+  it('shows the store its own products when no homepage has been built', async () => {
+    const category = await createCategory({ slug: 'fallback-cat', nameAr: 'فئة', nameEn: 'Cat' });
+    const product = await createProduct({
+      product: {
+        slug: 'fallback-product',
+        nameAr: 'منتج',
+        nameEn: 'Fallback product',
+        categoryId: category.id,
+        status: 'DRAFT',
+      },
+      variants: [{ sku: 'FALLBACK-1', priceMinor: 10_000 }],
+    });
+    await publishProduct(product.id);
+
+    const sections = await buildFallbackHomepageSections('en');
+
+    expect(sections).toHaveLength(1);
+    expect(sections[0]).toMatchObject({ type: 'NEW_ARRIVALS', titleEn: 'Latest products' });
+    expect((sections[0] as { products: { slug: string }[] }).products.map((p) => p.slug)).toEqual([
+      'fallback-product',
+    ]);
+  });
+
+  it('ignores a draft product — the fallback shows the storefront, not the admin', async () => {
+    const category = await createCategory({ slug: 'draft-cat', nameAr: 'فئة', nameEn: 'Cat' });
+    await createProduct({
+      product: {
+        slug: 'still-a-draft',
+        nameAr: 'مسودة',
+        nameEn: 'Still a draft',
+        categoryId: category.id,
+        status: 'DRAFT',
+      },
+      variants: [{ sku: 'DRAFT-1', priceMinor: 10_000 }],
+    });
+
+    expect(await buildFallbackHomepageSections('en')).toEqual([]);
+  });
+
+  it('adds a category grid only when there is more than one category to choose between', async () => {
+    const first = await createCategory({ slug: 'cat-one', nameAr: 'واحد', nameEn: 'One' });
+    const product = await createProduct({
+      product: {
+        slug: 'two-cat-product',
+        nameAr: 'منتج',
+        nameEn: 'Product',
+        categoryId: first.id,
+        status: 'DRAFT',
+      },
+      variants: [{ sku: 'TWO-CAT-1', priceMinor: 10_000 }],
+    });
+    await publishProduct(product.id);
+
+    // One category: a grid of one repeats the header's own link.
+    expect(await buildFallbackHomepageSections('en')).toHaveLength(1);
+
+    await createCategory({ slug: 'cat-two', nameAr: 'اتنين', nameEn: 'Two' });
+    const withTwo = await buildFallbackHomepageSections('en');
+
+    expect(withTwo).toHaveLength(2);
+    expect(withTwo[1]).toMatchObject({
+      type: 'FEATURED_CATEGORIES',
+      titleEn: 'Shop by category',
+    });
+  });
+
+  it('is never used once a real section exists — the two are separate reads', async () => {
+    await db.homepageSection.create({
+      data: { type: 'HERO', position: 0, enabled: true, config: { titleAr: 'أ', titleEn: 'A' } },
+    });
+
+    // The configured read is what the page prefers; the fallback knows
+    // nothing about it and stays a pure "what would we show instead".
+    expect(await getPublishedHomepageSections('en')).toHaveLength(1);
   });
 });
