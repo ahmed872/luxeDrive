@@ -6,6 +6,7 @@ import {
   E2E_CONTENT_OWNER,
   E2E_MANAGER,
   E2E_OWNER,
+  E2E_SETTINGS_OWNER,
   E2E_STAFF,
   E2E_USERS_OWNER,
 } from './admin-credentials';
@@ -64,6 +65,7 @@ let managerStatePromise: Promise<StorageState> | undefined;
 let usersOwnerStatePromise: Promise<StorageState> | undefined;
 let contentOwnerStatePromise: Promise<StorageState> | undefined;
 let analyticsOwnerStatePromise: Promise<StorageState> | undefined;
+let settingsOwnerStatePromise: Promise<StorageState> | undefined;
 
 // Playwright's fixture callback is conventionally named `use`, which is
 // also React's hook name — ESLint's `react-hooks` rule (applied globally by
@@ -77,6 +79,7 @@ export const test = base.extend<{
   usersOwnerContext: BrowserContext;
   contentOwnerContext: BrowserContext;
   analyticsOwnerContext: BrowserContext;
+  settingsOwnerContext: BrowserContext;
 }>({
   ownerContext: async ({ browser }, provide) => {
     ownerStatePromise ??= loginAndCaptureState(browser, E2E_OWNER);
@@ -120,6 +123,14 @@ export const test = base.extend<{
   analyticsOwnerContext: async ({ browser }, provide) => {
     analyticsOwnerStatePromise ??= loginAndCaptureState(browser, E2E_ANALYTICS_OWNER);
     const context = await browser.newContext({ storageState: await analyticsOwnerStatePromise });
+    await blockOffOriginRequests(context);
+    await provide(context);
+    await context.close();
+  },
+  /** Store settings' own owner (P15) — same rate-limit reasoning. */
+  settingsOwnerContext: async ({ browser }, provide) => {
+    settingsOwnerStatePromise ??= loginAndCaptureState(browser, E2E_SETTINGS_OWNER);
+    const context = await browser.newContext({ storageState: await settingsOwnerStatePromise });
     await blockOffOriginRequests(context);
     await provide(context);
     await context.close();

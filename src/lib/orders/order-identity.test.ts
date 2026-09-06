@@ -23,7 +23,13 @@ import { resetOrderTables } from '@/modules/orders/testing';
  * the new session-based branch running first.
  */
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  // `updateTag` is what the admin actions call for read-your-own-writes
+  // cache invalidation; a mock missing it fails as "not a function".
+  updateTag: vi.fn(),
+}));
 
 const customerAuthMock = vi.fn();
 vi.mock('@/modules/identity/customer-auth', () => ({ customerAuth: customerAuthMock }));

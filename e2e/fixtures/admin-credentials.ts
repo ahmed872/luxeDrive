@@ -77,3 +77,14 @@ export const E2E_ANALYTICS_OWNER = {
   email: 'e2e-analytics-owner@example.com',
   password: 'E2eAnalyticsOwnerPass123',
 };
+
+/**
+ * A sixth OWNER, for store settings (P15).
+ *
+ * Same rate-limiter reasoning as every account above it: one spec file, one
+ * `ip:email` bucket.
+ */
+export const E2E_SETTINGS_OWNER = {
+  email: 'e2e-settings-owner@example.com',
+  password: 'E2eSettingsOwnerPass123',
+};

@@ -29,6 +29,7 @@ const {
   E2E_USERS_OWNER,
   E2E_CONTENT_OWNER,
   E2E_ANALYTICS_OWNER,
+  E2E_SETTINGS_OWNER,
 } = await import('../e2e/fixtures/admin-credentials.js');
 
 async function upsertAdmin(
@@ -60,8 +61,9 @@ await upsertAdmin(E2E_ACCEPTANCE_OWNER.email, E2E_ACCEPTANCE_OWNER.password, 'OW
 await upsertAdmin(E2E_USERS_OWNER.email, E2E_USERS_OWNER.password, 'OWNER', true);
 await upsertAdmin(E2E_CONTENT_OWNER.email, E2E_CONTENT_OWNER.password, 'OWNER', true);
 await upsertAdmin(E2E_ANALYTICS_OWNER.email, E2E_ANALYTICS_OWNER.password, 'OWNER', true);
+await upsertAdmin(E2E_SETTINGS_OWNER.email, E2E_SETTINGS_OWNER.password, 'OWNER', true);
 
 console.log(
-  '✓ e2e admin fixtures ready: e2e-owner, e2e-staff, e2e-manager, e2e-disabled, e2e-acceptance, e2e-users-owner, e2e-content-owner, e2e-analytics-owner',
+  '✓ e2e admin fixtures ready: e2e-owner, e2e-staff, e2e-manager, e2e-disabled, e2e-acceptance, e2e-users-owner, e2e-content-owner, e2e-analytics-owner, e2e-settings-owner',
 );
 await db.$disconnect();

@@ -20,7 +20,13 @@ import { createUser } from '@/modules/identity/user.service';
  * be a deliberate edit in two places.
  */
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  // `updateTag` is what the admin actions call for read-your-own-writes
+  // cache invalidation; a mock missing it fails as "not a function".
+  updateTag: vi.fn(),
+}));
 
 const authMock = vi.fn();
 vi.mock('@/modules/identity/auth', () => ({ auth: authMock }));

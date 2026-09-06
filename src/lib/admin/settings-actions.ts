@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
 import { adminErrorMessage } from '@/lib/admin/admin-error-message';
 import { recordAuditEvent, requirePermission } from '@/modules/identity';
@@ -17,12 +17,28 @@ import type { ActionResult } from '@/lib/admin/action-result';
  *
  *   - **`settings.manage` is not a catalog permission.** STAFF holds none of
  *     it; a MANAGER does. The check is what enforces that, not the sidebar.
- *   - **Revalidation is broad on purpose.** The store's name, currency and
- *     branding are rendered by *every* storefront page, so a settings save
- *     is the one admin write that legitimately invalidates the whole
- *     storefront rather than one list — `revalidatePath('/', 'layout')`
- *     covers the locale tree beneath it. Every other action here stays
- *     targeted precisely because it does not have that reach.
+ *   - **Revalidation is broad on purpose, and has two halves.** The store's
+ *     name, currency and branding are rendered by *every* storefront page,
+ *     so a settings save is the one admin write that legitimately
+ *     invalidates the whole storefront rather than one list —
+ *     `revalidatePath('/', 'layout')` covers the locale tree beneath it.
+ *
+ *     That alone is not enough, and P15 found this the hard way: the header
+ *     and footer do not read `getStoreSettings` directly, they read
+ *     `getCachedStoreSettings`, an `unstable_cache` entry tagged
+ *     `settings:store` (`lib/cached-queries.ts`). That entry lives in the
+ *     Data Cache, which `revalidatePath` does not clear — so a renamed
+ *     store kept rendering its old name from cache until the tag's own 60s
+ *     window happened to lapse. Nothing in the application invalidated that
+ *     tag at all.
+ *
+ *     `updateTag`, not `revalidateTag`: this is a Server Action, and the
+ *     person who just pressed Save is precisely the one who must not be
+ *     served stale content. `revalidateTag`'s recommended `max` profile is
+ *     stale-while-revalidate — right for a blog, wrong for "I renamed my
+ *     store and it still shows the old name". `updateTag` expires the entry
+ *     immediately and is documented as the read-your-own-writes tool for
+ *     Server Actions.
  */
 export async function updateStoreSettingsAction(
   input: StoreSettingsInput,
@@ -51,6 +67,7 @@ export async function updateStoreSettingsAction(
       },
     });
 
+    updateTag('settings:store');
     revalidatePath('/', 'layout');
     revalidatePath('/admin/settings');
 

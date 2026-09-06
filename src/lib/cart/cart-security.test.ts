@@ -20,7 +20,13 @@ import { resetCartTables } from '@/modules/cart/testing';
  * payload changes a total.
  */
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  // `updateTag` is what the admin actions call for read-your-own-writes
+  // cache invalidation; a mock missing it fails as "not a function".
+  updateTag: vi.fn(),
+}));
 
 // `cart-identity.ts` derives a signed-in shopper from the storefront's own
 // customer session (`customerAuth`, a separate Auth.js instance from the

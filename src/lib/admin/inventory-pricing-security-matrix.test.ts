@@ -24,7 +24,13 @@ import { createUser } from '@/modules/identity/user.service';
 
 // `revalidatePath` needs Next's request store, which does not exist in a
 // plain Node test process; cache invalidation is not what is under test.
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+  // `updateTag` is what the admin actions call for read-your-own-writes
+  // cache invalidation; a mock missing it fails as "not a function".
+  updateTag: vi.fn(),
+}));
 
 const authMock = vi.fn();
 vi.mock('@/modules/identity/auth', () => ({ auth: authMock }));
