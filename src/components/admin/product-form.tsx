@@ -48,9 +48,11 @@ const productFormSchema = z.object({
   seoTitleEn: z.string().nullable(),
   seoDescriptionAr: z.string().nullable(),
   seoDescriptionEn: z.string().nullable(),
-  /** Create only — an existing product's pricing lives in its variants. */
+  /** Create only — an existing product's pricing and stock live in its
+   * variants, edited from the Inventory and Pricing screens. */
   sku: z.string().optional(),
   price: z.string().optional(),
+  stockQuantity: z.string().optional(),
 });
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
@@ -82,6 +84,8 @@ export interface ProductFormLabels {
   skuHelp: string;
   price: string;
   priceHelp: string;
+  stockQuantity: string;
+  stockQuantityHelp: string;
   attributesEmpty: string;
   selectCategoryFirst: string;
   seoTitleAr: string;
@@ -166,6 +170,7 @@ export function ProductForm({
       seoDescriptionEn: product?.seoDescriptionEn ?? null,
       sku: '',
       price: '',
+      stockQuantity: '',
     },
   });
 
@@ -222,6 +227,9 @@ export function ProductForm({
         initialVariant: {
           sku: values.sku ?? '',
           priceMinor: Number.isFinite(priceMajor) ? toMinor(priceMajor) : 0,
+          // Blank means none in stock, which is what the column defaults to
+          // anyway — but it is now a stated choice rather than a surprise.
+          stockQuantity: Math.max(0, Math.trunc(Number(values.stockQuantity)) || 0),
         },
       },
       locale,
@@ -424,6 +432,23 @@ export function ProductForm({
               {...register('price')}
             />
             <p className="text-caption text-(--color-text-muted)">{labels.priceHelp}</p>
+          </div>
+          {/* Without this field every new product was created with zero
+              stock and therefore shown as out of stock, and the only way to
+              fix it was a different screen the owner had no reason to know
+              about. */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="product-stock">{labels.stockQuantity}</Label>
+            <Input
+              id="product-stock"
+              type="number"
+              min={0}
+              step="1"
+              inputMode="numeric"
+              className="max-w-40 tabular-nums"
+              {...register('stockQuantity')}
+            />
+            <p className="text-caption text-(--color-text-muted)">{labels.stockQuantityHelp}</p>
           </div>
         </FormSection>
       )}

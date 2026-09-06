@@ -193,6 +193,9 @@ export const adminDictionary = {
       sortNameAsc: 'الاسم (أ–ي)',
       sortNameDesc: 'الاسم (ي–أ)',
       sortStatus: 'حسب الحالة',
+      stockQuantity: 'الكمية المتوفرة',
+      stockQuantityHelp:
+        'عدد القطع الجاهزة للبيع الآن. لو سبتها فاضية أو صفر، هيظهر المنتج «غير متوفر» للعملاء. تقدر تعدّلها بعدين من قسم المخزون.',
       statusDraft: 'مسودة',
       statusPublished: 'منشور',
       statusArchived: 'مؤرشف',
@@ -1164,6 +1167,9 @@ export const adminDictionary = {
       sortNameAsc: 'Name (A–Z)',
       sortNameDesc: 'Name (Z–A)',
       sortStatus: 'By status',
+      stockQuantity: 'Quantity in stock',
+      stockQuantityHelp:
+        'How many you have ready to sell. Left empty or zero, the product shows as out of stock to customers. You can change it later from Inventory.',
       statusDraft: 'Draft',
       statusPublished: 'Published',
       statusArchived: 'Archived',

@@ -97,6 +97,8 @@ export default async function NewProductPage() {
           skuHelp: t.products.skuHelp,
           price: t.products.price,
           priceHelp: t.products.priceHelp,
+          stockQuantity: t.products.stockQuantity,
+          stockQuantityHelp: t.products.stockQuantityHelp,
           attributesEmpty: t.products.attributesEmpty,
           selectCategoryFirst: t.products.selectCategoryFirst,
           seoTitleAr: t.products.seoTitleAr,

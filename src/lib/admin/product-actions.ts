@@ -34,9 +34,13 @@ import type { ActionResult } from '@/lib/admin/action-result';
 export interface CreateProductActionInput {
   product: ProductCoreInput;
   /** A product is never variant-less (`createProduct` enforces it), so the
-   * create form collects one SKU and price up front; options and further
-   * variants are built afterwards on the edit page. */
-  initialVariant: { sku: string; priceMinor: number };
+   * create form collects one SKU, price and opening stock up front;
+   * options and further variants are built afterwards on the edit page.
+   *
+   * `stockQuantity` is here because without it every product was created
+   * with the column's default of zero and shown to customers as out of
+   * stock, with no way to fix it from the screen that created it. */
+  initialVariant: { sku: string; priceMinor: number; stockQuantity?: number };
 }
 
 export async function createProductAction(
@@ -47,7 +51,13 @@ export async function createProductAction(
     const user = await requirePermission('products.create');
     const product = await createProduct({
       product: { ...input.product, status: 'DRAFT' },
-      variants: [{ sku: input.initialVariant.sku, priceMinor: input.initialVariant.priceMinor }],
+      variants: [
+        {
+          sku: input.initialVariant.sku,
+          priceMinor: input.initialVariant.priceMinor,
+          stockQuantity: input.initialVariant.stockQuantity ?? 0,
+        },
+      ],
     });
     await recordAuditEvent({
       action: 'product.created',
