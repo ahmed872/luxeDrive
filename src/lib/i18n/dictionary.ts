@@ -98,6 +98,24 @@ export const dictionary = {
       categoryNotFoundTitle: 'الفئة غير موجودة',
       categoryNotFoundDescription: 'ربما تم نقلها أو حذفها.',
     },
+    /** The wishlist page (`/[locale]/wishlist`). The header has linked here
+     * since P05; the page itself landed later. */
+    wishlistPage: {
+      title: 'المفضلة',
+      description: 'المنتجات اللي حفظتها للرجوع إليها لاحقًا.',
+      /** A template, not a function: this label crosses the Server →
+       * Client boundary (the count is only known in the browser), and a
+       * function cannot. Same `{count}` convention the admin
+       * dictionary uses. */
+      countLabel: '{count} منتج',
+      emptyTitle: 'قائمة المفضلة فاضية',
+      emptyDescription: 'اضغط على القلب في أي منتج عشان تحفظه هنا وترجع له بعدين.',
+      browse: 'تصفّح المنتجات',
+      loading: 'جارٍ التحميل…',
+      storageNotice:
+        'المفضلة محفوظة في هذا المتصفح فقط — مش هتلاقيها على جهاز تاني، ولو مسحت بيانات المتصفح هتروح.',
+      unavailableNotice: 'بعض المنتجات اللي حفظتها لم تعد متاحة، وتم استبعادها من القائمة.',
+    },
     product: {
       addToCart: 'أضف إلى السلة',
       buyNow: 'اشترِ الآن',
@@ -492,6 +510,21 @@ export const dictionary = {
       noResultsDescription: 'Try adjusting your filters or search terms.',
       categoryNotFoundTitle: 'Category not found',
       categoryNotFoundDescription: 'It may have been moved or removed.',
+    },
+    /** The wishlist page (`/[locale]/wishlist`). The header has linked here
+     * since P05; the page itself landed later. */
+    wishlistPage: {
+      title: 'Wishlist',
+      description: 'Products you saved to come back to.',
+      /** A template, not a function — see the Arabic entry. */
+      countLabel: '{count} products',
+      emptyTitle: 'Your wishlist is empty',
+      emptyDescription: 'Tap the heart on any product to save it here for later.',
+      browse: 'Browse products',
+      loading: 'Loading…',
+      storageNotice:
+        'Your wishlist is saved in this browser only — it will not follow you to another device, and clearing your browser data clears it.',
+      unavailableNotice: 'Some products you saved are no longer available and have been left out.',
     },
     product: {
       addToCart: 'Add to Cart',
