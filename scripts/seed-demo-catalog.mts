@@ -1,5 +1,10 @@
 /**
- * One-time data migration: legacy/src/data/cars.json → the catalog domain.
+ * Seeds the demo catalog: `scripts/data/demo-catalog.json` → the catalog domain.
+ *
+ * The data started life as the original Vite app's `cars.json`, but that
+ * application no longer lives in this repository (it was archived to its own
+ * repo when the rebuild was finished). The file is now the new app's own
+ * demo fixture and nothing here reaches outside `scripts/`.
  *
  * Every car becomes: Category = "Cars" (created once), a Brand (created once
  * per distinct brand name), a Product, and that product's one required
@@ -8,7 +13,7 @@
  * what makes these "cars" is entirely the AttributeDefinition rows created
  * on the Cars category below.
  *
- * Run with: pnpm db:migrate-cars
+ * Run with: pnpm db:seed-demo-catalog
  *
  * Idempotent by refusal, not by silent skipping: if a "cars" category
  * already exists, the script stops immediately rather than risk a partial
@@ -16,7 +21,7 @@
  * fresh database) to re-run it.
  *
  * `.mts` (not `.ts`) for top-level await; `NODE_OPTIONS=--conditions=react-server`
- * (set in the `db:migrate-cars` script) so `server-only` in `db.ts` resolves to
+ * (set in the `db:seed-demo-catalog` script) so `server-only` in `db.ts` resolves to
  * its no-op — Node's own condition mechanism, not a bundler trick, and the
  * exact same real-server context that condition is meant to describe: this
  * script only ever runs in Node, never a browser.
@@ -122,7 +127,7 @@ const LEGACY_CAR_FIELDS = [
 
 const dataPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../legacy/src/data/cars.json',
+  'data/demo-catalog.json',
 );
 
 async function main() {

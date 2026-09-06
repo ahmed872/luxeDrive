@@ -262,13 +262,13 @@ minutes later with nothing pointing at the real cause. Populate the
 development database once, before the first e2e run:
 
 ```bash
-pnpm db:migrate-cars            # legacy/src/data/cars.json → the catalog
+pnpm db:seed-demo-catalog       # scripts/data/demo-catalog.json → the catalog
 pnpm db:seed-storefront-demo    # publishes it, adds Arabic copy, homepage
 pnpm db:seed-e2e-orders         # the fixed order the order specs open
 pnpm db:seed-e2e-account        # the fixed customer account the account specs use
 ```
 
-`db:migrate-cars` refuses to run twice (it stops if a `cars` category
+`db:seed-demo-catalog` refuses to run twice (it stops if a `cars` category
 already exists); the other three are idempotent.
 
 ## Production (Vercel)

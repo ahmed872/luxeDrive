@@ -74,7 +74,7 @@ Then create the first admin account and, optionally, load the demo catalog:
 BOOTSTRAP_ADMIN_EMAIL="you@example.com" \
 BOOTSTRAP_ADMIN_PASSWORD="a real password, 12+ chars" pnpm db:create-admin
 
-pnpm db:migrate-cars          # legacy/src/data/cars.json → the catalog
+pnpm db:seed-demo-catalog     # scripts/data/demo-catalog.json → the catalog
 pnpm db:seed-storefront-demo  # publish it, add Arabic copy, seed the homepage
 ```
 
@@ -135,19 +135,15 @@ only on an HMAC-verified webhook. Server-only environment access is enforced
 by the build, and CI greps the client bundle for the database password on
 every push.
 
-## The legacy application
+## The application this replaced
 
-The original Vite single-page app lives in [`legacy/`](legacy/), untouched.
-It is excluded from every build, lint and test, and is kept as a visual and
-behavioural reference:
+The original Vite single-page app was archived to its own repository once
+the rebuild was complete; it is no longer part of this one. Its full
+history is still reachable here in the commits before the rebuild began.
 
-```bash
-cd legacy && pnpm install && pnpm dev
-```
-
-Its `cars.json` is still the source the demo catalog is migrated from
-(`pnpm db:migrate-cars`), which is why it is still here. The pre-rebuild
-state is also tagged `pre-rebuild-reference`.
+Its `cars.json` survives as `scripts/data/demo-catalog.json`, the demo
+fixture `pnpm db:seed-demo-catalog` loads — the data outlived the
+application that shipped it.
 
 ## Admin access
 

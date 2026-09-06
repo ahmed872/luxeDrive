@@ -11,11 +11,10 @@ that is enforced.
 ├── .github/workflows/ci.yml   install → typecheck → lint → test → migrate → build
 ├── docs/                      environments, backup and recovery, this file
 ├── generated/prisma/          generated Prisma client (gitignored)
-├── legacy/                    the original Vite app — reference only, never built
 ├── prisma/
 │   ├── schema.prisma          the data model
 │   └── migrations/            applied migrations, in order
-├── scripts/                   backup.sh, db-smoke.mjs
+├── scripts/                   backup.sh, db-smoke.mjs, seed data and fixtures
 └── src/
     ├── app/                   Next.js App Router (routes and layouts only)
     ├── components/ui/         design system components
@@ -23,10 +22,9 @@ that is enforced.
     └── modules/               the domain — one folder per bounded module
 ```
 
-`legacy/` is excluded from TypeScript, ESLint, Prettier and the Next build. It
-exists so the original UI stays runnable as a visual reference (`cd legacy &&
-pnpm install && pnpm dev`) while the platform is rebuilt. It is deleted only
-when the migration is complete and you say so.
+The original Vite application that this replaced was archived to its own
+repository once the rebuild was complete, and no longer lives here. Only its
+catalog data remains, as `scripts/data/demo-catalog.json`.
 
 ## Modules
 

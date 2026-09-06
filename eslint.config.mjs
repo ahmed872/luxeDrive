@@ -57,7 +57,6 @@ const moduleRules = Object.entries(MODULE_DEPENDENCIES).map(([name, allowed]) =>
 export default tseslint.config(
   {
     ignores: [
-      'legacy/**',
       '.next/**',
       'out/**',
       'node_modules/**',

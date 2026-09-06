@@ -28,7 +28,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "postinstall": "prisma generate",
     "db:smoke": "node scripts/db-smoke.mjs",
-    "db:migrate-cars": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-cars.mts",
+    "db:seed-demo-catalog": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-demo-catalog.mts",
     "db:migrate-media": "NODE_OPTIONS=--conditions=react-server tsx scripts/migrate-media.mts",
     "db:seed-storefront-demo": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed-storefront-demo.mts",
     "db:create-admin": "NODE_OPTIONS=--conditions=react-server tsx scripts/create-admin.mts",
